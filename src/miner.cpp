@@ -151,6 +151,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // Prepare dev script
     CScript devScript = GetScriptForDestination(DecodeDestination("nor1qn7zqg757kvxxe9xhay5xqlu9eyfv8kw402f8l9")); // mainnet
 
+    // Prepare swap script
+    CScript swapScript = GetScriptForDestination(DecodeDestination("nor1qw8c5cgx0jc83r5aw05jm3rf6u4f7e4zwejzh3z")); // mainnet
+
+    // Swap amount
+    // CAmount swapAmount = TODO: get the supply of the old chain at a certain block
+
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
