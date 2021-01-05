@@ -412,6 +412,11 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
                         {RPCResult::Type::NUM_TIME, "curtime", "current timestamp in " + UNIX_EPOCH_TIME},
                         {RPCResult::Type::STR, "bits", "compressed target of next block"},
                         {RPCResult::Type::NUM, "height", "The height of the next block"},
+                        {RPCResult::Type::ARR, "devReward", "dev reward address and amount",
+                            {
+                                {RPCResult::Type::STR, "payee", "address"},
+                                {RPCResult::Type::NUM, "amount", "required amount to pay"},
+                            }},
                     }},
                 RPCExamples{
                     HelpExampleCli("getblocktemplate", "'{\"rules\": [\"segwit\"]}'")
@@ -697,7 +702,19 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
     result.pushKV("transactions", transactions);
     result.pushKV("coinbaseaux", aux);
-    result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue);
+    result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue + pblock->vtx[0]->vout[1].nValue);
+    UniValue devRewardObj(UniValue::VARR);
+    {
+        CTxDestination dest;
+        ExtractDestination(pblock->vtx[0]->vout[1].scriptPubKey, dest);
+
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("payee", EncodeDestination(dest).c_str());
+        obj.pushKV("script", HexStr(pblock->vtx[0]->vout[1].scriptPubKey));
+        obj.pushKV("amount", pblock->vtx[0]->vout[1].nValue);
+        devRewardObj.push_back(obj);
+    }
+    result.pushKV("devReward", devRewardObj);
     result.pushKV("longpollid", ::ChainActive().Tip()->GetBlockHash().GetHex() + ToString(nTransactionsUpdatedLast));
     result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);
