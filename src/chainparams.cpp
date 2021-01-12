@@ -121,6 +121,8 @@ public:
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,83);  // D 
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x88, 0xB2, 0x1E};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
+        // BIP44 coin type is from https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+        base58Prefixes[EXT_COIN_TYPE] = {0x80, 0x00, 0x02, 0x62};
 
         bech32_hrp = "nor";
 
@@ -202,6 +204,8 @@ public:
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,85);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
+        // BIP44 coin type is from https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+        base58Prefixes[EXT_COIN_TYPE] = {0x80, 0x00, 0x00, 0x01};
 
         bech32_hrp = "tnor";
 
@@ -301,6 +305,8 @@ public:
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,80);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
+        // BIP44 coin type is from https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+        base58Prefixes[EXT_COIN_TYPE] = {0x80, 0x00, 0x00, 0x01};
 
         bech32_hrp = "norrt";
     }
