@@ -57,6 +57,7 @@ public:
 
     //! Return number of connections, default is in- and outbound (total)
     int getNumConnections(unsigned int flags = CONNECTIONS_ALL) const;
+    QString getMasternodeCountString() const;
     int getHeaderTipHeight() const;
     int64_t getHeaderTipTime() const;
 
@@ -87,12 +88,16 @@ private:
     std::unique_ptr<interfaces::Handler> m_handler_banned_list_changed;
     std::unique_ptr<interfaces::Handler> m_handler_notify_block_tip;
     std::unique_ptr<interfaces::Handler> m_handler_notify_header_tip;
+    std::unique_ptr<interfaces::Handler>  m_handler_additional_data_sync_progress_changed;
+    QString cachedMasternodeCountString;
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
     BanTableModel *banTableModel;
 
     //! A thread to interact with m_node asynchronously
     QThread* const m_thread;
+
+    QTimer *pollMnTimer;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
@@ -110,12 +115,16 @@ Q_SIGNALS:
 
     // Show progress dialog e.g. for verifychain
     void showProgress(const QString &title, int nProgress);
+    
+    void strMasternodesChanged(const QString &strMasternodes);
+    void additionalDataSyncProgressChanged(double nSyncProgress);
 
 public Q_SLOTS:
     void updateNumConnections(int numConnections);
     void updateNetworkActive(bool networkActive);
     void updateAlert();
     void updateBanlist();
+    void updateMnTimer();
 };
 
 #endif // BITCOIN_QT_CLIENTMODEL_H

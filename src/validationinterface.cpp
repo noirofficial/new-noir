@@ -245,3 +245,10 @@ void CMainSignals::NewPoWValidBlock(const CBlockIndex *pindex, const std::shared
     LOG_EVENT("%s: block hash=%s", __func__, block->GetHash().ToString());
     m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.NewPoWValidBlock(pindex, block); });
 }
+// NOIR
+void CMainSignals::NotifyHeaderTip(const CBlockIndex * pindex, bool fInitialDownload) {
+    m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.NotifyHeaderTip(pindex, fInitialDownload); });
+}
+void CMainSignals::AcceptedBlockHeader(const CBlockIndex * pindex) {
+    m_internals->Iterate([&](CValidationInterface& callbacks) { callbacks.AcceptedBlockHeader(pindex); });
+}

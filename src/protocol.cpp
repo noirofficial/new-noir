@@ -40,6 +40,19 @@ const char *SENDCMPCT="sendcmpct";
 const char *CMPCTBLOCK="cmpctblock";
 const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
+// NOIR message types
+const char *SPORK="spork";
+const char *GETSPORKS="getsporks";
+const char *MASTERNODEPAYMENTVOTE="mnw";
+const char *MASTERNODEPAYMENTSYNC="mnget";
+const char *MNANNOUNCE="mnb";
+const char *MNPING="mnp";
+const char *DSEG="dseg";
+const char *SYNCSTATUSCOUNT="ssc";
+const char *MNGOVERNANCESYNC="govsync";
+const char *MNGOVERNANCEOBJECT="govobj";
+const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
+const char *MNVERIFY="mnv";
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -71,6 +84,20 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::CMPCTBLOCK,
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
+    // NOIR message types
+    // NOTE: include non-implmented here, we must keep this list in sync with enum in protocol.h
+    NetMsgType::SPORK,
+    NetMsgType::GETSPORKS,
+    NetMsgType::MASTERNODEPAYMENTVOTE,
+    NetMsgType::MASTERNODEPAYMENTSYNC,
+    NetMsgType::MNANNOUNCE,
+    NetMsgType::MNPING,
+    NetMsgType::DSEG,
+    NetMsgType::SYNCSTATUSCOUNT,
+    NetMsgType::MNGOVERNANCEOBJECT,
+    NetMsgType::MNGOVERNANCESYNC,
+    NetMsgType::MNGOVERNANCEOBJECTVOTE,
+    NetMsgType::MNVERIFY,  
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
@@ -186,6 +213,15 @@ std::string CInv::GetCommand() const
     case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
     case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
     case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
+    // NOIR
+    case MSG_SPORK:    return cmd.append(NetMsgType::SPORK);
+    case MSG_MASTERNODE_PAYMENT_VOTE:    return cmd.append(NetMsgType::MASTERNODEPAYMENTVOTE);
+    case MSG_MASTERNODE_PAYMENT_BLOCK:    return cmd.append(NetMsgType::MASTERNODEPAYMENTVOTE);
+    case MSG_MASTERNODE_ANNOUNCE:    return cmd.append(NetMsgType::MNANNOUNCE);
+    case MSG_MASTERNODE_PING:    return cmd.append(NetMsgType::MNPING);
+    case MSG_GOVERNANCE_OBJECT:    return cmd.append(NetMsgType::MNGOVERNANCEOBJECT);
+    case MSG_GOVERNANCE_OBJECT_VOTE:    return cmd.append(NetMsgType::MNGOVERNANCEOBJECTVOTE);
+    case MSG_MASTERNODE_VERIFY:    return cmd.append(NetMsgType::MNVERIFY);
     default:
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }

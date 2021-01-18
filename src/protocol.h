@@ -234,6 +234,21 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+// NOIR message types
+// NOTE: do NOT declare non-implmented here, we don't want them to be exposed to the outside
+// TODO: add description
+extern const char *SPORK;
+extern const char *GETSPORKS;
+extern const char *MASTERNODEPAYMENTVOTE;
+extern const char *MASTERNODEPAYMENTSYNC;
+extern const char *MNANNOUNCE;
+extern const char *MNPING;
+extern const char *DSEG;
+extern const char *SYNCSTATUSCOUNT;
+extern const char *MNGOVERNANCESYNC;
+extern const char *MNGOVERNANCEOBJECT;
+extern const char *MNGOVERNANCEOBJECTVOTE;
+extern const char *MNVERIFY;
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -370,6 +385,16 @@ enum GetDataMsg
     // The following can only occur in getdata. Invs always use TX or BLOCK.
     MSG_FILTERED_BLOCK = 3,  //!< Defined in BIP37
     MSG_CMPCT_BLOCK = 4,     //!< Defined in BIP152
+    // NOIR message types
+    // NOTE: declare non-implmented here, we must keep this enum consistent and backwards compatible
+    MSG_SPORK = 6,
+    MSG_MASTERNODE_PAYMENT_VOTE = 7,
+    MSG_MASTERNODE_PAYMENT_BLOCK = 8,
+    MSG_MASTERNODE_ANNOUNCE = 10,
+    MSG_MASTERNODE_PING = 11,
+    MSG_GOVERNANCE_OBJECT = 12,
+    MSG_GOVERNANCE_OBJECT_VOTE = 13,
+    MSG_MASTERNODE_VERIFY = 14,
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG, //!< Defined in BIP144
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,       //!< Defined in BIP144
     MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,

@@ -115,6 +115,10 @@ public:
 
     /** Banlist did change. */
     ADD_SIGNALS_DECL_WRAPPER(BannedListChanged, void, void);
+    
+    // NOIR
+    /** Additional data sync progress changed */
+    ADD_SIGNALS_DECL_WRAPPER(NotifyAdditionalDataSyncProgressChanged, void, double nSyncProgress);
 };
 
 /** Show warning message **/

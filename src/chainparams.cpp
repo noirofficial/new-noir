@@ -84,6 +84,14 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1609599446; // January 2, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1640995199; // December 31, 2021
+        
+        consensus.nMasternodeMinimumConfirmations = 15;   
+        consensus.nSuperblockStartBlock = 1;
+        consensus.nSuperblockCycle = 43800;
+        consensus.nGovernanceMinQuorum = 10; 
+        consensus.nGovernanceFilterElements = 20000;
+        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        strSporkAddress = "zeeR5vSFMFb42Fq8Ve4HCpEAFLS69i15aN";
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
@@ -174,6 +182,14 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1609599446; // January 2, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1640995199; // December 31, 2021
+        
+        consensus.nMasternodeMinimumConfirmations = 15;
+        consensus.nSuperblockStartBlock = 1;
+        consensus.nSuperblockCycle = 43800;
+        consensus.nGovernanceMinQuorum = 10; 
+        consensus.nGovernanceFilterElements = 20000;
+        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        strSporkAddress = "";
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001495c1d5a01e2af8a23");
@@ -257,6 +273,14 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        
+        consensus.nMasternodeMinimumConfirmations = 15;
+        consensus.nSuperblockStartBlock = 1;
+        consensus.nSuperblockCycle = 43800;
+        consensus.nGovernanceMinQuorum = 10; 
+        consensus.nGovernanceFilterElements = 20000;
+        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        strSporkAddress = "";
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");

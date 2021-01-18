@@ -22,6 +22,9 @@
 #include <QThread>
 #include <QTimer>
 
+#include <masternodeman.h>
+#include <masternodesync.h>
+
 static int64_t nLastHeaderTipUpdateNotification = 0;
 static int64_t nLastBlockTipUpdateNotification = 0;
 
@@ -63,6 +66,16 @@ ClientModel::~ClientModel()
     m_thread->wait();
 }
 
+QString ClientModel::getMasternodeCountString() const
+{
+    return tr("Total: %1 (Enabled: %3)")
+            .arg(QString::number((int)mnodeman.size()))
+            .arg(QString::number((int)mnodeman.CountEnabled()));
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV4)))
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV6)))
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_TOR)));
+}
+
 int ClientModel::getNumConnections(unsigned int flags) const
 {
     CConnman::NumConnections connections = CConnman::CONNECTIONS_NONE;
@@ -75,6 +88,18 @@ int ClientModel::getNumConnections(unsigned int flags) const
         connections = CConnman::CONNECTIONS_ALL;
 
     return m_node.getNodeCount(connections);
+}
+
+void ClientModel::updateMnTimer()
+{
+    QString newMasternodeCountString = getMasternodeCountString();
+
+    if (cachedMasternodeCountString != newMasternodeCountString)
+    {
+        cachedMasternodeCountString = newMasternodeCountString;
+
+        Q_EMIT strMasternodesChanged(cachedMasternodeCountString);
+    }
 }
 
 int ClientModel::getHeaderTipHeight() const
