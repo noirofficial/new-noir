@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Dash Core developers
 // Copyright (c) 2017-2018 The NOIR Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -114,7 +114,7 @@ CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outp
         return COLLATERAL_UTXO_NOT_FOUND;
     }
 
-    if(coin.out.nValue != 100000 * COIN) {
+    if(coin.out.nValue != Params().GetConsensus().nMasternodeCollateralRequired * COIN) {
         return COLLATERAL_INVALID_AMOUNT;
     }
 
@@ -702,7 +702,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     }
 
     if (err == COLLATERAL_INVALID_AMOUNT) {
-        LogPrint(BCLog::MN, "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 100000 SYS, masternode=%s\n", outpoint.ToStringShort());
+        LogPrint(BCLog::MN, "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 25000 NOR, masternode=%s\n", outpoint.ToStringShort());
         nDos = 33;
         return false;
     }

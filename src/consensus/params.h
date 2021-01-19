@@ -86,6 +86,7 @@ struct Params {
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action
     int nGovernanceFilterElements;
     int nMasternodeMinimumConfirmations;
+    int nMasternodeCollateralRequired;
 };
 } // namespace Consensus
 

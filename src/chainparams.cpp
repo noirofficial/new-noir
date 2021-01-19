@@ -85,6 +85,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1609599446; // January 2, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1640995199; // December 31, 2021
         
+        consensus.nMasternodeCollateralRequired = 25000;
         consensus.nMasternodeMinimumConfirmations = 15;   
         consensus.nSuperblockStartBlock = 1;
         consensus.nSuperblockCycle = 43800;
@@ -183,6 +184,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1609599446; // January 2, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1640995199; // December 31, 2021
         
+        consensus.nMasternodeCollateralRequired = 25000;
         consensus.nMasternodeMinimumConfirmations = 15;
         consensus.nSuperblockStartBlock = 1;
         consensus.nSuperblockCycle = 43800;
@@ -274,6 +276,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         
+        consensus.nMasternodeCollateralRequired = 25000;
         consensus.nMasternodeMinimumConfirmations = 15;
         consensus.nSuperblockStartBlock = 1;
         consensus.nSuperblockCycle = 43800;
