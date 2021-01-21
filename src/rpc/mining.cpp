@@ -38,6 +38,10 @@
 #include <memory>
 #include <stdint.h>
 
+#include <boost/thread.hpp>
+#include <masternodepayments.h>
+#include <masternodesync.h>
+
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -417,6 +421,13 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
                                 {RPCResult::Type::STR, "payee", "address"},
                                 {RPCResult::Type::NUM, "amount", "required amount to pay"},
                             }},
+                        {RPCResult::Type::ARR, "masternode", "required masternode payee that must be included in the next block",
+                            {
+                                {RPCResult::Type::STR, "payee", "payee address"},
+                                {RPCResult::Type::STR, "script", "payee scriptPubKey"},
+                                {RPCResult::Type::NUM, "amount", "required amount to pay"},
+                            }},
+                        {RPCResult::Type::BOOL, "masternode_payments_started", "true, if masternode payments started"},
                     }},
                 RPCExamples{
                     HelpExampleCli("getblocktemplate", "'{\"rules\": [\"segwit\"]}'")
@@ -493,6 +504,11 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
 
     if(!g_rpc_node->connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    // when enforcement is on we need information about a masternode payee or otherwise our block is going to be orphaned by the network
+    CScript payee;
+    if (!masternodeSync.IsWinnersListSynced() && !mnpayments.GetBlockPayee(::ChainActive().Height() + 1, payee))
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Noir Core is downloading masternode winners...");
 
     if (g_rpc_node->connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
@@ -715,6 +731,21 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
         devRewardObj.push_back(obj);
     }
     result.pushKV("devReward", devRewardObj);
+    UniValue masternodeObj(UniValue::VARR);
+    {
+        if(pblocktemplate->txoutMasternode != CTxOut()) {
+            CTxDestination dest;
+            ExtractDestination(pblocktemplate->txoutMasternode.scriptPubKey, dest);
+
+            UniValue obj(UniValue::VOBJ);
+            obj.pushKV("payee", EncodeDestination(dest).c_str());
+            obj.pushKV("script", HexStr(pblocktemplate->txoutMasternode.scriptPubKey));
+            obj.pushKV("amount", pblocktemplate->txoutMasternode.nValue);
+            masternodeObj.push_back(obj);
+        }
+    }
+    result.pushKV("masternode", masternodeObj);
+    result.pushKV("masternode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nMasternodeStartBlock);
     result.pushKV("longpollid", ::ChainActive().Tip()->GetBlockHash().GetHex() + ToString(nTransactionsUpdatedLast));
     result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);

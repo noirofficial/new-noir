@@ -80,7 +80,8 @@ struct Params {
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
-    
+
+    int nMasternodeStartBlock;
     int nSuperblockStartBlock;
     int nSuperblockCycle; // in blocks
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action

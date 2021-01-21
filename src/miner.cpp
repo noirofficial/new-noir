@@ -25,6 +25,9 @@
 #include <algorithm>
 #include <utility>
 
+#include <masternodepayments.h>
+#include <masternodesync.h>
+
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     int64_t nOldTime = pblock->nTime;
@@ -145,8 +148,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_last_block_weight = nBlockWeight;
 
     // Calculate rewards
-    CAmount devReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.2;
-    CAmount mstReward = nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.8);
+    CAmount devReward = 0, blkReward = 0, mstReward = 0;
+    if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
+        devReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.2;
+        blkReward = nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.3);
+        mstReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.5;
+    } else {
+        devReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.2;
+        blkReward = nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.8);
+    }
 
     // Prepare dev script
     CScript devScript = GetScriptForDestination(DecodeDestination("nor1qn7zqg757kvxxe9xhay5xqlu9eyfv8kw402f8l9")); // mainnet
@@ -163,9 +173,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(2);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = mstReward;
+    coinbaseTx.vout[0].nValue = blkReward;
     coinbaseTx.vout[1].scriptPubKey = devScript;
     coinbaseTx.vout[1].nValue = devReward;
+    if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
+        FillBlockPayments(coinbaseTx, nHeight, mstReward, nFees, pblocktemplate->txoutMasternode, pblocktemplate->voutSuperblock);
+        if(pblocktemplate->txoutMasternode == CTxOut()){
+            coinbaseTx.vout[0].nValue = blkReward + mstReward; // do not lose money if no noirnode is found -> pay the miner/staker instead
+        }
+    }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
