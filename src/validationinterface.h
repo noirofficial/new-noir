@@ -173,6 +173,9 @@ protected:
      * has been received and connected to the headers tree, though not validated yet */
     virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& block) {};
     friend class CMainSignals;
+    // NOIR
+    virtual void AcceptedBlockHeader(const CBlockIndex *pindexNew) {}
+    virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
 };
 
 struct MainSignalsInstance;
@@ -204,6 +207,10 @@ public:
     void ChainStateFlushed(const CBlockLocator &);
     void BlockChecked(const CBlock&, const BlockValidationState&);
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
+    /** Notifies listeners of accepted block header */
+    void AcceptedBlockHeader(const CBlockIndex *);
+    /** Notifies listeners of updated block header tip */
+    void NotifyHeaderTip(const CBlockIndex *, bool fInitialDownload);  
 };
 
 CMainSignals& GetMainSignals();

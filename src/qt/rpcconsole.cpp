@@ -581,6 +581,9 @@ void RPCConsole::setClientModel(ClientModel *model)
         updateNetworkState();
         connect(model, &ClientModel::networkActiveChanged, this, &RPCConsole::setNetworkActive);
 
+        setMasternodeCount(model->getMasternodeCountString());
+        connect(model, &ClientModel::strMasternodesChanged, this, &RPCConsole::setMasternodeCount);
+
         updateTrafficStats(node.getTotalBytesRecv(), node.getTotalBytesSent());
         connect(model, &ClientModel::bytesChanged, this, &RPCConsole::updateTrafficStats);
 
@@ -762,6 +765,11 @@ void RPCConsole::setFontSize(int newSize)
     clear(false);
     ui->messagesWidget->setHtml(str);
     ui->messagesWidget->verticalScrollBar()->setValue(oldPosFactor * ui->messagesWidget->verticalScrollBar()->maximum());
+}
+
+void RPCConsole::setMasternodeCount(const QString &strMasternodes)
+{
+    ui->masternodeCount->setText(strMasternodes);
 }
 
 void RPCConsole::clear(bool clearHistory)

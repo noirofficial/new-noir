@@ -83,6 +83,19 @@
 #include <zmq/zmqrpc.h>
 #endif
 
+#include <activemasternode.h>
+#include <dsnotificationinterface.h>
+#include <masternodepayments.h>
+#include <masternodesync.h>
+#include <masternodeman.h>
+#include <messagesigner.h>
+#include <spork.h>
+#include <netfulfilledman.h>
+#include <flatdatabase.h>
+#include <key_io.h>
+
+static CDSNotificationInterface* pdsNotificationInterface = NULL;
+
 static bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -113,6 +126,25 @@ static fs::path GetPidFile()
 
 NODISCARD static bool CreatePidFile()
 {
+    // NOIR
+    if(fMasternodeMode)
+    {
+        boost::filesystem::ifstream ifs(GetPidFile(), std::ios::in);
+        pid_t pidFile = 0;
+        while(ifs >> pidFile){
+            if(pidFile && pidFile != getpid()){
+                try{
+                    KillProcess(pidFile);
+                    LogPrintf("%s: noird successfully exited from pid %d(from noird.pid)\n", __func__, pidFile);
+                }
+                catch(...){
+                    LogPrintf("%s: noird failed to exit from pid %d(from noird.pid)\n", __func__, pidFile);
+                }
+            } 
+        } 
+        ifs.close();
+        boost::filesystem::remove(GetPidFile()); 
+    }
     fsbridge::ofstream file{GetPidFile()};
     if (file) {
 #ifdef WIN32
@@ -190,6 +222,11 @@ void Shutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
+    if (!fLiteMode) {
+        // STORE DATA CACHES INTO SERIALIZED DAT FILES
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+        flatdb4.Dump(netfulfilledman);
+    }
     for (const auto& client : node.chain_clients) {
         client->flush();
     }
@@ -374,7 +411,7 @@ void SetupServerArgs()
 
     // Hidden Options
     std::vector<std::string> hidden_args = {
-        "-dbcrashratio", "-forcecompactdb",
+        "-masternode","-dbcrashratio", "-forcecompactdb",
         // GUI args. These will be overwritten by SetupUIArgs for the GUI
         "-choosedatadir", "-lang=<lang>", "-min", "-resetguisettings", "-splash", "-uiplatform"};
 
@@ -416,6 +453,13 @@ void SetupServerArgs()
     hidden_args.emplace_back("-sysperms");
 #endif
     gArgs.AddArg("-txindex", strprintf("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)", DEFAULT_TXINDEX), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-litemode=<n>", strprintf("Disable all Noir specific functionality (Masternodes) (0-1, default: 0)"), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-sporkaddr=<hex>", strprintf("Override spork address. Only useful for regtest. Using this on mainnet or testnet will ban you."), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS); 
+    gArgs.AddArg("-masternode=<n>", strprintf("Enable the client to act as a masternode (0-1, default: 0)"), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-mnconf=<file>", strprintf("Specify masternode configuration file (default: %s)", "masternode.conf"), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-mnconflock=<n>", strprintf("Lock masternodes from masternode configuration file (default: %u)", 1), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-masternodeprivkey=<n>", "Set the masternode private key", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    gArgs.AddArg("-sporkkey=<key>", strprintf("Private key for use with sporks"), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);    
     gArgs.AddArg("-blockfilterindex=<type>",
                  strprintf("Maintain an index of compact filters by block (default: %s, values: %s).", DEFAULT_BLOCKFILTERINDEX, ListBlockFilterTypes()) +
                  " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled.",
@@ -792,7 +836,17 @@ void InitParameterInteraction()
         if (gArgs.SoftSetBoolArg("-listen", true))
             LogPrintf("%s: parameter interaction: -whitebind set -> setting -listen=1\n", __func__);
     }
-
+    // NOIR
+    if (gArgs.GetBoolArg("-masternode", false)) {
+        // masternodes MUST accept connections from outside
+        gArgs.SoftSetBoolArg("-listen", true);
+        LogPrintf("%s: parameter interaction: -masternode=1 -> setting -listen=1\n", __func__);
+        if (gArgs.GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS) < DEFAULT_MAX_PEER_CONNECTIONS) {
+            // masternodes MUST be able to handle at least DEFAULT_MAX_PEER_CONNECTIONS connections
+            gArgs.SoftSetArg("-maxconnections", itostr(DEFAULT_MAX_PEER_CONNECTIONS));
+            LogPrintf("%s: parameter interaction: -masternode=1 -> setting -maxconnections=%d\n", __func__, DEFAULT_MAX_PEER_CONNECTIONS);
+        }
+    }
     if (gArgs.IsArgSet("-connect")) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         if (gArgs.SoftSetBoolArg("-dnsseed", false))
@@ -1214,6 +1268,8 @@ bool AppInitLockDataDirectory()
 bool AppInitMain(NodeContext& node)
 {
     const CChainParams& chainparams = Params();
+    // NOIR
+    fMasternodeMode = gArgs.GetBoolArg("-masternode", false);
     // ********************************************************* Step 4a: application initialization
     if (!CreatePidFile()) {
         // Detailed error printed inside CreatePidFile().
@@ -1285,7 +1341,16 @@ bool AppInitMain(NodeContext& node)
             threadGroup.create_thread([i]() { return ThreadScriptCheck(i); });
         }
     }
+    
+   
+    if (!sporkManager.SetSporkAddress(gArgs.GetArg("-sporkaddr", Params().SporkAddress())))
+        return InitError(_("Invalid spork address specified with -sporkaddr").translated);
 
+    if (gArgs.IsArgSet("-sporkkey")) // spork priv key
+    {
+        if (!sporkManager.SetPrivKey(gArgs.GetArg("-sporkkey", "")))
+            return InitError(_("Unable to sign spork message, wrong key?").translated);
+    }
     assert(!node.scheduler);
     node.scheduler = MakeUnique<CScheduler>();
 
@@ -1323,7 +1388,7 @@ bool AppInitMain(NodeContext& node)
      * that the server is there and will be ready later).  Warmup mode will
      * be disabled when initialisation is finished.
      */
-    if (gArgs.GetBoolArg("-server", false))
+    if (gArgs.GetBoolArg("-server", true))
     {
         uiInterface.InitMessage_connect(SetRPCWarmupStatus);
         if (!AppInitServers())
@@ -1431,7 +1496,8 @@ bool AppInitMain(NodeContext& node)
     // see Step 2: parameter interactions for more information about these
     fListen = gArgs.GetBoolArg("-listen", DEFAULT_LISTEN);
     fDiscover = gArgs.GetBoolArg("-discover", true);
-    g_relay_txes = !gArgs.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY);
+    // NOIR
+    g_relay_txes = !gArgs.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY) || fMasternodeMode;
 
     for (const std::string& strAddr : gArgs.GetArgs("-externalip")) {
         CService addrLocal;
@@ -1473,6 +1539,7 @@ bool AppInitMain(NodeContext& node)
         RegisterValidationInterface(g_zmq_notification_interface);
     }
 #endif
+    pdsNotificationInterface = new CDSNotificationInterface(*g_rpc_node->connman);
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
     uint64_t nMaxOutboundTimeframe = MAX_UPLOAD_TIMEFRAME;
 
@@ -1788,10 +1855,90 @@ bool AppInitMain(NodeContext& node)
         block_notify_genesis_wait_connection.disconnect();
     }
 
-    if (ShutdownRequested()) {
-        return false;
+     //lite mode disables all masternode functionality
+    fLiteMode = gArgs.GetBoolArg("-litemode", false);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all masternode-specific functionality is disabled.").translated);
+    }
+    
+
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode.").translated);
+    }
+    if(fMasternodeMode) {
+        LogPrintf("MASTERNODE:\n");
+        std::string errorMessage = "";
+        if(!CheckSpecs(errorMessage)){
+            return InitError(errorMessage);
+        }
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("pidof noird | wc -w", "r"), pclose);
+        if (!pipe) {
+           return InitError("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        int resultInt = 0;
+        result.erase(std::remove(result.begin(), result.end(), '\n'), result.end());
+        if(!result.empty() && !ParseInt32(result, &resultInt))
+            return InitError("Could not parse result from pidof");
+
+        if(resultInt != 1)   
+            return InitError(_("Ensure you are running this masternode in a Unix OS and that only on noird is running...").translated); 
+                         
+        std::string strMasterNodePrivKey = gArgs.GetArg("-masternodeprivkey", "");
+        if(!strMasterNodePrivKey.empty()) {
+            if(!CMessageSigner::GetKeysFromSecret(strMasterNodePrivKey, activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode))
+                return InitError(_("Invalid masternodeprivkey. Please see documentation.").translated);
+
+            LogPrintf("  pubKeyMasternode: %s\n", EncodeDestination(PKHash(activeMasternode.pubKeyMasternode)));
+        } else {
+            return InitError(_("You must specify a masternodeprivkey in the configuration. Please see documentation for help.").translated);
+        }
     }
 
+   
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+
+
+ 
+    // NOIR ********************************************************* Step 11b: Load cache data
+
+    // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
+
+    if (!fLiteMode) {
+        fs::path pathDB = GetDataDir();
+        std::string strDBName;
+
+
+        strDBName = "netfulfilled.dat";
+        uiInterface.InitMessage(_("Loading fulfilled requests cache...").translated);
+        CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
+        if(!flatdb4.Load(netfulfilledman)) {
+            return InitError(_("Failed to load fulfilled requests cache from").translated + "\n" + (pathDB / strDBName).string());
+        }
+    }  
+   if (ShutdownRequested()) {
+        return false;
+    }
+   // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
+    // but don't call it directly to prevent triggering of other listeners like zmq etc.
+    // GetMainSignals().UpdatedBlockTip(::ChainActive().Tip());
+    pdsNotificationInterface->InitializeCurrentBlockTip();
+
+    // ********************************************************* Step 11d: schedule Noir-specific tasks
+
+    if (!fLiteMode) {
+        node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(netfulfilledman)), std::chrono::minutes{1});
+        node.scheduler->scheduleEvery(std::bind(&CMasternodeSync::DoMaintenance, std::ref(masternodeSync), std::ref(*g_rpc_node->connman)), std::chrono::seconds{MASTERNODE_SYNC_TICK_SECONDS});
+        node.scheduler->scheduleEvery(std::bind(&CMasternodeMan::DoMaintenance, std::ref(mnodeman), std::ref(*g_rpc_node->connman)), std::chrono::minutes{1});
+        node.scheduler->scheduleEvery(std::bind(&CActiveMasternode::DoMaintenance, std::ref(activeMasternode), std::ref(*g_rpc_node->connman)), std::chrono::seconds{MASTERNODE_MIN_MNP_SECONDS});
+
+        node.scheduler->scheduleEvery(std::bind(&CMasternodePayments::DoMaintenance, std::ref(mnpayments)), std::chrono::minutes{1});
+    }
     // ********************************************************* Step 12: start node
 
     int chain_active_height;

@@ -29,6 +29,11 @@
 #include <util/strencodings.h>
 
 #include <memory>
+// NOIR
+#include <spork.h>
+#include <masternodepayments.h>
+#include <masternodesync.h>
+#include <masternodeman.h>
 #include <typeinfo>
 
 #if defined(NDEBUG)
@@ -342,7 +347,8 @@ struct CNodeState {
         /* Track when to attempt download of announced transactions (process
          * time in micros -> txid)
          */
-        std::multimap<std::chrono::microseconds, uint256> m_tx_process_time;
+        // NOIR
+        std::multimap<std::chrono::microseconds, CInv> m_tx_process_time;
 
         //! Store all the transactions a peer has recently announced
         std::set<uint256> m_tx_announced;
@@ -731,26 +737,42 @@ std::chrono::microseconds CalculateTxGetDataTime(const uint256& txid, std::chron
     return process_time;
 }
 
-void RequestTx(CNodeState* state, const uint256& txid, std::chrono::microseconds current_time) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void RequestTx(CNodeState* state, const CInv& inv, std::chrono::microseconds current_time) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     CNodeState::TxDownloadState& peer_download_state = state->m_tx_download;
     if (peer_download_state.m_tx_announced.size() >= MAX_PEER_TX_ANNOUNCEMENTS ||
             peer_download_state.m_tx_process_time.size() >= MAX_PEER_TX_ANNOUNCEMENTS ||
-            peer_download_state.m_tx_announced.count(txid)) {
+            peer_download_state.m_tx_announced.count(inv.hash)) {
         // Too many queued announcements from this peer, or we already have
         // this announcement
         return;
     }
-    peer_download_state.m_tx_announced.insert(txid);
+    peer_download_state.m_tx_announced.insert(inv.hash);
 
     // Calculate the time to try requesting this transaction. Use
     // fPreferredDownload as a proxy for outbound peers.
-    const auto process_time = CalculateTxGetDataTime(txid, current_time, !state->fPreferredDownload);
+    const auto process_time = CalculateTxGetDataTime(inv.hash, current_time, !state->fPreferredDownload);
 
-    peer_download_state.m_tx_process_time.emplace(process_time, txid);
-}
+    peer_download_state.m_tx_process_time.emplace(process_time, inv);
+}  
 
 } // namespace
+// NOIR
+void EraseInvRequest(const CNode* pfrom, const uint256& hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main){
+    CNodeState* nodestate = State(pfrom->GetId());
+    nodestate->m_tx_download.m_tx_announced.erase(hash);
+    nodestate->m_tx_download.m_tx_in_flight.erase(hash);
+    EraseTxRequest(hash);
+}
+bool IsAnnouncementAllowed(const CNode* pfrom, const int requestedAnnouncements, const uint256& hash)  EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+{
+    CNodeState::TxDownloadState& peer_download_state = State(pfrom->GetId())->m_tx_download;
+    return ((peer_download_state.m_tx_announced.size()+requestedAnnouncements) <= MAX_PEER_TX_ANNOUNCEMENTS || peer_download_state.m_tx_announced.count(hash));
+}
+void RequestInv(const CNode* pfrom, const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+{
+    RequestTx(State(pfrom->GetId()), inv, GetTime<std::chrono::microseconds>());
+} 
 
 // This function is used for testing the stale tip eviction logic, see
 // denialofservice_tests.cpp
@@ -1353,6 +1375,37 @@ bool static AlreadyHave(const CInv& inv, const CTxMemPool& mempool) EXCLUSIVE_LO
     case MSG_BLOCK:
     case MSG_WITNESS_BLOCK:
         return LookupBlockIndex(inv.hash) != nullptr;
+    // NOIR
+    /* 
+        NOIR Related Inventory Messages
+
+        --
+
+        We shouldn't update the sync times for each of the messages when we already have it. 
+        We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
+        We want to only update the time on new hits, so that we can time out appropriately if needed.
+    */
+
+    case MSG_SPORK:
+        return mapSporks.count(inv.hash);
+
+    case MSG_MASTERNODE_PAYMENT_VOTE:
+        return mnpayments.mapMasternodePaymentVotes.count(inv.hash);
+
+    case MSG_MASTERNODE_PAYMENT_BLOCK:
+        {
+            const CBlockIndex* bi = LookupBlockIndex(inv.hash);
+            return bi != nullptr && mnpayments.mapMasternodeBlocks.find(bi->nHeight) != mnpayments.mapMasternodeBlocks.end();
+        }
+
+    case MSG_MASTERNODE_ANNOUNCE:
+        return mnodeman.mapSeenMasternodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+
+    case MSG_MASTERNODE_PING:
+        return mnodeman.mapSeenMasternodePing.count(inv.hash);
+
+    case MSG_MASTERNODE_VERIFY:
+        return mnodeman.mapSeenMasternodeVerification.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1578,7 +1631,7 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
         // Process as many TX items from the front of the getdata queue as
         // possible, since they're common and it's efficient to batch process
         // them.
-        while (it != pfrom->vRecvGetData.end() && (it->type == MSG_TX || it->type == MSG_WITNESS_TX)) {
+        while (it != pfrom->vRecvGetData.end() && (it->type == MSG_TX || it->type == MSG_WITNESS_TX || (it->type >= MSG_SPORK && it->type <= MSG_MASTERNODE_VERIFY))) {
             if (interruptMsgProc)
                 return;
             // The send buffer provides backpressure. If there's no space in
@@ -1595,26 +1648,82 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
 
             // Send stream from relay memory
             bool push = false;
-            auto mi = mapRelay.find(inv.hash);
-            int nSendFlags = (inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0);
-            if (mi != mapRelay.end()) {
-                connman->PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::TX, *mi->second));
-                push = true;
-            } else {
-                auto txinfo = mempool.info(inv.hash);
-                // To protect privacy, do not answer getdata using the mempool when
-                // that TX couldn't have been INVed in reply to a MEMPOOL request,
-                // or when it's too recent to have expired from mapRelay.
-                if (txinfo.tx && (
-                     (mempool_req.count() && txinfo.m_time <= mempool_req)
-                      || (txinfo.m_time <= longlived_mempool_time)))
-                {
-                    connman->PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::TX, *txinfo.tx));
+            if(pfrom->m_tx_relay != nullptr && (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX)){
+                auto mi = mapRelay.find(inv.hash);
+                int nSendFlags = (inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0);
+                if (mi != mapRelay.end()) {
+                    connman->PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::TX, *mi->second));
                     push = true;
+                } else {
+                    auto txinfo = mempool.info(inv.hash);
+                    // To protect privacy, do not answer getdata using the mempool when
+                    // that TX couldn't have been INVed in reply to a MEMPOOL request,
+                    // or when it's too recent to have expired from mapRelay.
+                    if (txinfo.tx && (
+                         (mempool_req.count() && txinfo.m_time <= mempool_req)
+                          || (txinfo.m_time <= longlived_mempool_time)))
+                    {
+                        connman->PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::TX, *txinfo.tx));
+                        push = true;
+                    }
                 }
-            }
-            if (!push) {
-                vNotFound.push_back(inv);
+                if (!push) {
+                    vNotFound.push_back(inv);
+                }
+            } else {
+                if (!push && inv.type == MSG_SPORK) {
+                    if(mapSporks.count(inv.hash)) {
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SPORK, mapSporks[inv.hash]));
+                        push = true;
+                    }
+                }
+
+                if (!push && inv.type == MSG_MASTERNODE_PAYMENT_VOTE) {
+                    if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTVOTE, mnpayments.mapMasternodePaymentVotes[inv.hash]));
+                        push = true;
+                    }
+                }
+
+                if (!push && inv.type == MSG_MASTERNODE_PAYMENT_BLOCK) {
+                    const CBlockIndex* bi = LookupBlockIndex(inv.hash);
+                    LOCK(cs_mapMasternodeBlocks);
+                    if (bi != nullptr && mnpayments.mapMasternodeBlocks.count(bi->nHeight)) {
+                        for(auto& payee: mnpayments.mapMasternodeBlocks[bi->nHeight].vecPayees) {
+                            std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
+                            for(auto& hash: vecVoteHashes) {
+                                if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTVOTE, mnpayments.mapMasternodePaymentVotes[hash]));
+                                }
+                            }
+                        }
+                        push = true;
+                    }
+                }
+
+                if (!push && inv.type == MSG_MASTERNODE_ANNOUNCE) {
+                    if(mnodeman.mapSeenMasternodeBroadcast.count(inv.hash)){
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNANNOUNCE, mnodeman.mapSeenMasternodeBroadcast[inv.hash].second));
+                        push = true;
+                    }
+                }
+
+                if (!push && inv.type == MSG_MASTERNODE_PING) {
+                    if(mnodeman.mapSeenMasternodePing.count(inv.hash)) {
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNPING, mnodeman.mapSeenMasternodePing[inv.hash]));
+                        push = true;
+                    }
+                }
+
+                if (!push && inv.type == MSG_MASTERNODE_VERIFY) {
+                    if(mnodeman.mapSeenMasternodeVerification.count(inv.hash)) {
+                        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNVERIFY, mnodeman.mapSeenMasternodeVerification[inv.hash]));
+                        push = true;
+                    }
+                }              
+                if (!push) {
+                    vNotFound.push_back(inv);
+                }
             }
         }
     } // release cs_main
@@ -2302,7 +2411,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                     pfrom->fDisconnect = true;
                     return true;
                 } else if (!fAlreadyHave && !fImporting && !fReindex && !::ChainstateActive().IsInitialBlockDownload()) {
-                    RequestTx(State(pfrom->GetId()), inv.hash, current_time);
+                    RequestTx(State(pfrom->GetId()), inv, current_time);
                 }
             }
         }
@@ -2588,7 +2697,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                 for (const CTxIn& txin : tx.vin) {
                     CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
                     pfrom->AddInventoryKnown(_inv);
-                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv.hash, current_time);
+                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv, current_time);
                 }
                 AddOrphanTx(ptx, pfrom->GetId());
 
@@ -3248,7 +3357,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
         vRecv >> vInv;
         if (vInv.size() <= MAX_PEER_TX_IN_FLIGHT + MAX_BLOCKS_IN_TRANSIT_PER_PEER) {
             for (CInv &inv : vInv) {
-                if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX) {
+                if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX || (inv.type >= MSG_SPORK && inv.type <= MSG_MASTERNODE_VERIFY)) {
                     // If we receive a NOTFOUND message for a txid we requested, erase
                     // it from our data structures for this peer.
                     auto in_flight_it = state->m_tx_download.m_tx_in_flight.find(inv.hash);
@@ -3264,7 +3373,24 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
         }
         return true;
     }
+    bool found = false;
+    const std::vector<std::string> &allMessages = getAllNetMessageTypes();
+    for(const auto &msg: allMessages) {
+        if(msg == msg_type) {
+            found = true;
+            break;
+        }
+    }
 
+    if (found)
+    {
+        //probably one the extensions
+        mnodeman.ProcessMessage(pfrom, msg_type, vRecv, *connman);
+        mnpayments.ProcessMessage(pfrom, msg_type, vRecv,*connman);
+        sporkManager.ProcessSpork(pfrom, msg_type, vRecv, *connman);
+        masternodeSync.ProcessMessage(pfrom, msg_type, vRecv);
+        return true;
+    }
     // Ignore unknown commands for extensibility
     LogPrint(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(msg_type), pfrom->GetId());
     return true;
@@ -4061,11 +4187,10 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
 
         auto& tx_process_time = state.m_tx_download.m_tx_process_time;
         while (!tx_process_time.empty() && tx_process_time.begin()->first <= current_time && state.m_tx_download.m_tx_in_flight.size() < MAX_PEER_TX_IN_FLIGHT) {
-            const uint256 txid = tx_process_time.begin()->second;
+            const CInv inv = tx_process_time.begin()->second;
             // Erase this entry from tx_process_time (it may be added back for
             // processing at a later time, see below)
             tx_process_time.erase(tx_process_time.begin());
-            CInv inv(MSG_TX | GetFetchFlags(pto), txid);
             if (!AlreadyHave(inv, m_mempool)) {
                 // If this transaction was last requested more than 1 minute ago,
                 // then request.
@@ -4084,8 +4209,8 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     // up processing to happen after the download times out
                     // (with a slight delay for inbound peers, to prefer
                     // requests to outbound peers).
-                    const auto next_process_time = CalculateTxGetDataTime(txid, current_time, !state.fPreferredDownload);
-                    tx_process_time.emplace(next_process_time, txid);
+                    const auto next_process_time = CalculateTxGetDataTime(inv.hash, current_time, !state.fPreferredDownload);
+                    tx_process_time.emplace(next_process_time, inv);
                 }
             } else {
                 // We have already seen this transaction, no need to download.

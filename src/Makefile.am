@@ -101,6 +101,19 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
+  activemasternode.h \
+  spork.h \
+  dsnotificationinterface.h \
+  masternode.h \
+  masternodepayments.h \
+  masternodesync.h \
+  masternodeman.h \
+  masternodeconfig.h \
+  messagesigner.h \
+  netfulfilledman.h \
+  flatdatabase.h \
+  cachemap.h \
+  cachemultimap.h \
   addrdb.h \
   addrman.h \
   attributes.h \
@@ -270,6 +283,17 @@ libnoir_util_a-clientversion.$(OBJEXT): obj/build.h
 libnoir_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(NOIR_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libnoir_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libnoir_server_a_SOURCES = \
+  activemasternode.cpp \
+  dsnotificationinterface.cpp \
+  masternode.cpp \
+  masternodepayments.cpp \
+  masternodesync.cpp \
+  masternodeconfig.cpp \
+  masternodeman.cpp \
+  messagesigner.cpp \
+  netfulfilledman.cpp \
+  rpc/masternode.cpp \
+  spork.cpp \
   addrdb.cpp \
   addrman.cpp \
   banman.cpp \
@@ -356,6 +380,7 @@ libnoir_wallet_a_SOURCES = \
   wallet/walletdb.cpp \
   wallet/walletutil.cpp \
   wallet/coinselection.cpp \
+  rpc/masternode.cpp \
   $(BITCOIN_CORE_H)
 
 libnoir_wallet_tool_a_CPPFLAGS = $(AM_CPPFLAGS) $(NOIR_INCLUDES)

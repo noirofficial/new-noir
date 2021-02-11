@@ -2117,7 +2117,7 @@ CAmount CWallet::GetAvailableBalance(const CCoinControl* coinControl) const
     return balance;
 }
 
-void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount) const
+void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe, const CCoinControl* coinControl, const CAmount& nMinimumAmount, const CAmount& nMaximumAmount, const CAmount& nMinimumSumAmount, const uint64_t nMaximumCount, const bool bIncludeLocked) const
 {
     AssertLockHeld(cs_wallet);
 
@@ -2199,7 +2199,7 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
 
-            if (IsLockedCoin(entry.first, i))
+            if (!bIncludeLocked && IsLockedCoin(entry.first, i))
                 continue;
 
             if (IsSpent(wtxid, i))
@@ -4130,6 +4130,29 @@ const CAddressBookData* CWallet::FindAddressBookEntry(const CTxDestination& dest
         return nullptr;
     }
     return &address_book_it->second;
+}
+
+bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAmount amount)
+{
+    auto locked_chain = chain().lock();
+    LOCK(cs_wallet);
+    CScript scriptChange;
+    scriptChange << OP_RETURN << ToByteVector(hash);
+
+    CAmount nFeeRet = 0;
+    int nChangePosRet = -1;
+    std::string strFail = "";
+    std::vector< CRecipient > vecSend;
+    vecSend.push_back((CRecipient){scriptChange, amount, false});
+
+    CCoinControl coinControl;
+    bool success = CreateTransaction(*locked_chain, vecSend, tx, nFeeRet, nChangePosRet, strFail, coinControl, true);
+    if(!success){
+        LogPrintf("CWallet::GetBudgetSystemCollateralTX -- Error: %s\n", strFail);
+        return false;
+    }
+
+    return true;
 }
 
 void CWallet::postInitProcess()

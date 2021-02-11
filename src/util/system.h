@@ -37,6 +37,25 @@
 
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
 
+extern bool fMasternodeMode;
+extern bool bb;
+extern bool fLiteMode;
+
+typedef struct {
+    // Values from /proc/meminfo, in KiB or converted to MiB.
+    long MemTotalKiB;
+    int MemTotalMiB;
+    int MemAvailableMiB; // -1 means no data available
+    int SwapTotalMiB;
+    long SwapTotalKiB;
+    int SwapFreeMiB;
+    // Calculated percentages
+    int MemAvailablePercent; // percent of total memory that is available
+    int SwapFreePercent; // percent of total swap that is free
+} meminfo_t;
+
+meminfo_t parse_meminfo();
+
 // Application startup time (used for uptime calculation)
 int64_t GetStartupTime();
 
@@ -73,6 +92,10 @@ fs::path GetDefaultDataDir();
 // The blocks directory is always net specific.
 const fs::path &GetBlocksDir();
 const fs::path &GetDataDir(bool fNetSpecific = true);
+// NOIR
+fs::path GetMasternodeConfigFile();
+void KillProcess(const pid_t& pid);
+bool CheckSpecs(std::string &errMsg, bool bMiner = false);
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
 /** Tests only */

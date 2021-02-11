@@ -52,6 +52,11 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 
+#include <masternodeman.h>
+#include <masternodepayments.h>
+
+std::map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
+
 #if defined(NDEBUG)
 # error "Noir cannot be compiled without assertions."
 #endif
@@ -305,6 +310,27 @@ bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction& tx, int flag
         }
     }
     return EvaluateSequenceLocks(index, lockPair);
+}
+
+// NOIR
+bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin)
+{
+    LOCK(cs_main);
+    return ::ChainstateActive().CoinsTip().GetCoin(outpoint, coin);
+}
+
+int GetUTXOHeight(const COutPoint& outpoint)
+{
+    // -1 means UTXO is yet unknown or already spent
+    Coin coin;
+    return GetUTXOCoin(outpoint, coin) ? coin.nHeight : -1;
+}
+
+int GetUTXOConfirmations(const COutPoint& outpoint)
+{
+    // -1 means UTXO is yet unknown or already spent
+    int nPrevoutHeight = GetUTXOHeight(outpoint);
+    return (nPrevoutHeight > -1 && ::ChainActive().Tip()) ? ::ChainActive().Height() - nPrevoutHeight + 1 : -1;
 }
 
 // Returns the script flags which should be checked for a given block
@@ -1220,6 +1246,9 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
+    if (nHeight == 0)
+        return 0 * COIN;
+
     // Block reward will always be 2.2 NOR
     // 0.66 to Stakers/Miners
     // 0.44 to Devs
@@ -1794,6 +1823,17 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
     return nVersion;
 }
 
+// NOIR
+bool GetBlockHash(uint256& hashRet, int nBlockHeight)
+{
+    LOCK(cs_main);
+    if(::ChainActive().Tip() == NULL) return false;
+    if(nBlockHeight < -1 || nBlockHeight > ::ChainActive().Height()) return false;
+    if(nBlockHeight == -1) nBlockHeight = ::ChainActive().Height();
+    hashRet = ::ChainActive()[nBlockHeight]->GetBlockHash();
+    return true;
+}
+
 /**
  * Threshold condition checker that triggers when unknown versionbits are seen on the network.
  */
@@ -2163,6 +2203,29 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         LogPrintf("ERROR: %s: CheckQueue failed\n", __func__);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "block-validation-failed");
     }
+
+    // NOIR : MODIFIED TO CHECK MASTERNODE PAYMENTS
+    // It's possible that we simply don't have enough data and this could fail
+    // (i.e. block itself could be a correct one and we need to store it),
+    // that's why this is in ConnectBlock. Could be the other way around however -
+    // the peer who sent us this block is missing some data and wasn't able
+    // to recognize that block is actually invalid.
+    // TODO: resync data (both ways?) and try to reprocess this block later.
+    if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, blockReward, nFees, blockReward)) {
+        {
+            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        }
+        LogPrintf("ERROR: ConnectBlock(): couldn't find masternode payment\n");
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-payee");
+    }
+
+    std::string strError = "";
+    if (pindex->nHeight > 1 && !IsBlockValueValid(block, pindex->nHeight, blockReward, nFees, strError)) {
+        LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount");
+    }
+    // END NOIR
+
     int64_t nTime4 = GetTimeMicros(); nTimeVerify += nTime4 - nTime2;
     LogPrint(BCLog::BENCH, "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs (%.2fms/blk)]\n", nInputs - 1, MILLI * (nTime4 - nTime2), nInputs <= 1 ? 0 : MILLI * (nTime4 - nTime2) / (nInputs-1), nTimeVerify * MICRO, nTimeVerify * MILLI / nBlocksTotal);
 
@@ -2601,6 +2664,49 @@ bool CChainState::ConnectTip(BlockValidationState& state, const CChainParams& ch
     return true;
 }
 
+bool DisconnectBlocks(int blocks)
+{
+    LOCK2(cs_main, ::mempool.cs); 
+    BlockValidationState state;
+    const CChainParams& chainparams = Params();
+
+    LogPrintf("DisconnectBlocks -- Got command to replay %d blocks\n", blocks);
+    for(int i = 0; i < blocks; i++) {
+        DisconnectedBlockTransactions disconnectpool;
+        if(!g_chainstate->DisconnectTip(state, chainparams,&disconnectpool) || !state.IsValid()) {
+            // This is likely a fatal error, but keep the mempool consistent,
+            // just in case. Only remove from the mempool in this case.
+            UpdateMempoolForReorg(disconnectpool, false);
+            return false;
+        }
+    }
+    return true;
+}
+
+void ReprocessBlocks(int nBlocks)
+{
+    LOCK(cs_main);
+
+    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+    while(it != mapRejectedBlocks.end()){
+        //use a window twice as large as is usual for the nBlocks we want to reset
+        if((*it).second  > GetTime() - (nBlocks*60*5)) {
+            CBlockIndex* bi = LookupBlockIndex((*it).first);
+            if (bi != nullptr) {
+                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+
+                ResetBlockFailureFlags(bi);
+            }
+        }
+        ++it;
+    }
+
+    DisconnectBlocks(nBlocks);
+
+    BlockValidationState state;
+    ActivateBestChain(state, Params());
+}
+
 /**
  * Return the tip of the chain with the most work in it, that isn't
  * known to be invalid (it's however far from certain to be valid).
@@ -2887,6 +2993,9 @@ bool CChainState::ActivateBestChain(BlockValidationState &state, const CChainPar
             break;
     } while (pindexNewTip != pindexMostWork);
     CheckBlockIndex(chainparams.GetConsensus());
+
+    // NOIR Notify external listeners about accepted block header
+    GetMainSignals().AcceptedBlockHeader(pindexNewTip);
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(chainparams, state, FlushStateMode::PERIODIC)) {
