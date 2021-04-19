@@ -68,6 +68,7 @@ enum class BlockValidationResult {
     BLOCK_INVALID_PREV,      //!< A block this one builds on is invalid
     BLOCK_TIME_FUTURE,       //!< block timestamp was > 2 hours in the future (or our clock is bad)
     BLOCK_CHECKPOINT,        //!< the block failed to meet one of our checkpoints
+    BLOCK_HEADER_SYNC,       //!< reject the block header due to synchronization problems, used to punish the node less
 };
 
 

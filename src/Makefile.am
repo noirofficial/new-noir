@@ -186,6 +186,7 @@ BITCOIN_CORE_H = \
   policy/policy.h \
   policy/rbf.h \
   policy/settings.h \
+  pos.h \
   pow.h \
   protocol.h \
   psbt.h \
@@ -323,6 +324,7 @@ libnoir_server_a_SOURCES = \
   policy/fees.cpp \
   policy/rbf.cpp \
   policy/settings.cpp \
+  pos.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -753,18 +755,18 @@ endif
 include Makefile.test_util.include
 include Makefile.test_fuzz.include
 
-if ENABLE_TESTS
-include Makefile.test.include
-endif
+#if ENABLE_TESTS
+#include Makefile.test.include
+#endif
 
-if ENABLE_BENCH
-include Makefile.bench.include
-endif
+#if ENABLE_BENCH
+#include Makefile.bench.include
+#endif
 
 if ENABLE_QT
 include Makefile.qt.include
 endif
 
-if ENABLE_QT_TESTS
-include Makefile.qttest.include
-endif
+#if ENABLE_QT_TESTS
+#include Makefile.qttest.include
+#endif
