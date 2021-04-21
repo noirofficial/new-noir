@@ -9,8 +9,10 @@
 #include <amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
+#include <miner.h>
 #include <outputtype.h>
 #include <policy/feerate.h>
+#include <pos.h>
 #include <psbt.h>
 #include <tinyformat.h>
 #include <ui_interface.h>
@@ -39,6 +41,8 @@
 #include <boost/signals2/signal.hpp>
 
 using LoadWalletFn = std::function<void(std::unique_ptr<interfaces::Wallet> wallet)>;
+
+extern CAmount nReserveBalance;
 
 //! Explicitly unload and delete the wallet.
 //! Blocks the current thread after signaling the unload intent so that all
@@ -630,6 +634,8 @@ private:
     std::mutex mutexScanning;
     friend class WalletRescanReserver;
 
+    std::map<COutPoint, CStakeCache> stakeCache;
+
     //! the current wallet version: clients below this version are not able to load the wallet
     int nWalletVersion GUARDED_BY(cs_wallet){FEATURE_BASE};
 
@@ -804,6 +810,15 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const bool bIncludeLocked = false) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    
+    /**
+     * Proof-of_stake
+     */
+    void AvailableCoinsForStaking(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins) const;
+    bool HaveAvailableCoinsForStaking() const;
+    bool SelectCoinsForStaking(interfaces::Chain::Lock& locked_chain, CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
+    bool CreateCoinStake(interfaces::Chain::Lock& locked_chain, const FillableSigningProvider& keystore, unsigned int nBits, int64_t nTime, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key, CBlockTemplate *pblocktemplate);
+
 
     /**
      * Return list of available coins and locked coins grouped by non-change output address.
@@ -1227,6 +1242,8 @@ public:
 
     //! Connect the signals from ScriptPubKeyMans to the signals in CWallet
     void ConnectScriptPubKeyManNotifiers();
+
+    static const bool DEFAULT_STAKE_CACHE = true;
 };
 
 /**

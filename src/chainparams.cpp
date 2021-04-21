@@ -75,8 +75,9 @@ public:
         consensus.SegwitHeight = 0; // 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
         consensus.MinBIP9WarningHeight = 20; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
-        consensus.nPowTargetTimespan = 150 * 3; // two weeks
-        consensus.nPowTargetSpacing = 150;
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPowTargetTimespan = 150 * 3; // 7.5 minutes
+        consensus.nPowTargetSpacing = 150; // 2.5 minutes
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 19; // 95% of nMinerConfirmationWindow
@@ -94,6 +95,10 @@ public:
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkAddress = "zeeR5vSFMFb42Fq8Ve4HCpEAFLS69i15aN";
+
+        // Proof-of-Stake related values
+        consensus.nLastPOWBlock = 551000;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
@@ -175,6 +180,7 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 150 * 3; // two weeks
         consensus.nPowTargetSpacing = 150;
         consensus.fPowAllowMinDifficultyBlocks = true;
@@ -194,6 +200,10 @@ public:
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkAddress = "";
+
+        // Proof-of-Stake related values
+        consensus.nLastPOWBlock = 551000;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001495c1d5a01e2af8a23");
@@ -287,6 +297,11 @@ public:
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkAddress = "";
+
+        // Proof-of-Stake related values
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nLastPOWBlock = 551000;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");

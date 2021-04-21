@@ -86,6 +86,41 @@ double GetDifficulty(const CBlockIndex* blockindex)
     return dDiff;
 }
 
+double GetPoSKernelPS()
+{
+    int nPoSInterval = 100;
+    double dStakeKernelsTriedAvg = 0;
+    int nStakesHandled = 0, nStakesTime = 0;
+
+    CBlockIndex* pindex = pindexBestHeader;
+    CBlockIndex* pindexPrevStake = NULL;
+
+    while (pindex && nStakesHandled < nPoSInterval)
+    {
+        if (pindex->IsProofOfStake())
+        {
+            if (pindexPrevStake)
+            {
+                dStakeKernelsTriedAvg += GetDifficulty(pindexPrevStake) * 4294967296.0;
+                nStakesTime += pindexPrevStake->nTime - pindex->nTime;
+                nStakesHandled++;
+            }
+            pindexPrevStake = pindex;
+        }
+
+        pindex = pindex->pprev;
+    }
+
+    double result = 0;
+
+    if (nStakesTime)
+        result = dStakeKernelsTriedAvg / nStakesTime;
+
+    result *= 16;
+
+    return result;
+}
+
 static int ComputeNextBlockAndDepth(const CBlockIndex* tip, const CBlockIndex* blockindex, const CBlockIndex*& next)
 {
     next = tip->GetAncestor(blockindex->nHeight + 1);
@@ -117,7 +152,9 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
-
+    
+    if (blockindex->IsProofOfStake())
+        result.pushKV("modifier", blockindex->nStakeModifier.GetHex());
     if (blockindex->pprev)
         result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
     if (pnext)
@@ -162,6 +199,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
+    result.pushKV("flags", blockindex->IsProofOfStake()? "proof-of-stake" : "proof-of-work");
+    
+    if (block.IsProofOfStake()){
+        result.pushKV("modifier", blockindex->nStakeModifier.GetHex());
+        result.pushKV("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end()));
+    }
 
     if (blockindex->pprev)
         result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
@@ -730,6 +773,7 @@ static UniValue getblockheader(const JSONRPCRequest& request)
                             {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                             {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
                             {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                            {RPCResult::Type::STR_HEX, "modifier", "Proof of Stake modifier"},
                             {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
                             {RPCResult::Type::STR_HEX, "nextblockhash", "The hash of the next block"},
                         }},
@@ -838,6 +882,9 @@ static UniValue getblock(const JSONRPCRequest& request)
                     {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                     {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the chain up to this block (in hex)"},
                     {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                    {RPCResult::Type::STR, "flags", "What kind of proof this block uses"},
+                    {RPCResult::Type::STR_HEX, "modifier", "Proof of Stake modifier"},
+                    {RPCResult::Type::STR_HEX, "signature", "Proof of Stake signature"},
                     {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
                     {RPCResult::Type::STR_HEX, "nextblockhash", "The hash of the next block"},
                 }},

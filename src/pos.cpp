@@ -186,36 +186,35 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
         return CheckStakeKernelHash(pindexPrev, nBits, *pBlockTime, coinPrev.out.nValue, prevout, nTime);
     } else {
         //found in cache
-        /*const CStakeCache& stake = it->second;
+        const CStakeCache& stake = it->second;
         
-        if (CheckStakeKernelHash(pindexPrev, nBits, new CCoins(stake.txPrev, pindexPrev->nHeight), prevout, nTime)) {
+        /*if (CheckStakeKernelHash(pindexPrev, nBits, stake.blockFromTime, stake.amount, prevout, nTime)) {
             // Cache could potentially cause false positive stakes in the event of deep reorgs, so check without cache also
             return CheckKernel(pindexPrev, nBits, nTime, prevout);
-        }
+        }*/
         
-        return CheckStakeKernelHash(pindexPrev, nBits, *pBlockTime, stake.amount, prevout, nTime);*/
+        return CheckStakeKernelHash(pindexPrev, nBits, stake.blockFromTime, stake.amount, prevout, nTime);
     }
 }
 
-/*void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevout, CBlockIndex* pindexPrev){
+void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevout, CBlockIndex* pindexPrev, CCoinsViewCache& view){
     if(cache.find(prevout) != cache.end()){
         //already in cache
         return;
     }
-    CTransaction txPrev;
-    uint256 hashBlock = uint256();
-    if (!GetTransaction(prevout.hash, txPrev, Params().GetConsensus(), hashBlock, true)){
-        LogPrintf("CacheKernel() : could not find previous transaction %s\n", prevout.hash.ToString());
+    Coin coinPrev;
+    if(!view.GetCoin(prevout, coinPrev)){
         return;
     }
-    if (mapBlockIndex.count(hashBlock) == 0) {
-        LogPrintf("CacheKernel() : could not find block of previous transaction %s\n", hashBlock.ToString());
+
+    if(pindexPrev->nHeight + 1 - coinPrev.nHeight < COINBASE_MATURITY){
         return;
     }
-    if (pindexPrev->nHeight + 1 - mapBlockIndex[hashBlock]->nHeight < COINBASE_MATURITY){
-        LogPrintf("CacheKernel() : stake prevout is not mature in block %s\n", hashBlock.ToString());
+    CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
+    if(!blockFrom) {
         return;
     }
-    CStakeCache c(hashBlock, txPrev);
+
+    CStakeCache c(blockFrom->nTime, coinPrev.out.nValue);
     cache.insert({prevout, c});
-}*/
+}

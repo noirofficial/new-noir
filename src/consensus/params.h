@@ -88,6 +88,11 @@ struct Params {
     int nGovernanceFilterElements;
     int nMasternodeMinimumConfirmations;
     int nMasternodeCollateralRequired;
+
+    /** Proof of stake parameters */
+    uint256 posLimit;
+    int nLastPOWBlock;
+    int nStakeTimestampMask;
 };
 } // namespace Consensus
 

@@ -9,7 +9,6 @@
 #include <optional.h>
 #include <primitives/block.h>
 #include <txmempool.h>
-#include <validation.h>
 
 #include <memory>
 #include <stdint.h>
@@ -20,6 +19,9 @@
 class CBlockIndex;
 class CChainParams;
 class CScript;
+#ifdef ENABLE_WALLET
+class CWallet;
+#endif
 
 namespace Consensus { struct Params; };
 
@@ -150,6 +152,9 @@ private:
     int64_t nLockTimeCutoff;
     const CChainParams& chainparams;
     const CTxMemPool& m_mempool;
+#ifdef ENABLE_WALLET
+    CWallet *pwallet = 0;
+#endif
 
 public:
     struct Options {
