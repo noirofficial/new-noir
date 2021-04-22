@@ -650,6 +650,7 @@ endif
 noir_wallet_LDADD = \
   $(LIBNOIR_WALLET_TOOL) \
   $(LIBNOIR_WALLET) \
+  $(LIBNOIR_SERVER) \
   $(LIBNOIR_COMMON) \
   $(LIBNOIR_CONSENSUS) \
   $(LIBNOIR_UTIL) \

@@ -32,6 +32,8 @@
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/fees.h>
+#include <miner.h>
+#include <validation.h>
 
 #include <masternodepayments.h>
 

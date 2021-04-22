@@ -19,7 +19,7 @@
 #include "uint256.h"
 #include "primitives/transaction.h"
 #include <stdio.h>
-#include "util.h"
+//#include <util/signstr.h>
 
 // Stake Modifier (hash modifier of proof-of-stake):
 // The purpose of stake modifier is to prevent a txout (coin) owner from

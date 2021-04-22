@@ -37,6 +37,12 @@
 
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
 
+#ifndef WIN32
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
 extern bool fMasternodeMode;
 extern bool bb;
 extern bool fLiteMode;

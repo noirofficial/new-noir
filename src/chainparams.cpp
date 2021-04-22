@@ -199,7 +199,7 @@ public:
         consensus.nGovernanceMinQuorum = 10; 
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkAddress = "";
+        strSporkAddress = "21Xsi3rrmihvAUmCzE2Yh1XehoGjftPDnTf";
 
         // Proof-of-Stake related values
         consensus.nLastPOWBlock = 551000;

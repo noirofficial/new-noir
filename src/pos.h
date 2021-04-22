@@ -10,15 +10,15 @@
 #ifndef NOIR_POS_H
 #define NOIR_POS_H
 
-#include "pos.h"
-#include "txdb.h"
-#include "validation.h"
-#include "arith_uint256.h"
-#include "consensus/validation.h"
-#include "hash.h"
-#include "timedata.h"
-#include "chainparams.h"
-#include "script/sign.h"
+#include <pos.h>
+#include <txdb.h>
+#include <validation.h>
+#include <arith_uint256.h>
+#include <consensus/validation.h>
+#include <hash.h>
+#include <timedata.h>
+#include <chainparams.h>
+#include <script/sign.h>
 #include <stdint.h>
 
 using namespace std;
