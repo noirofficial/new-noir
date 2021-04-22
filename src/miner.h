@@ -9,12 +9,14 @@
 #include <optional.h>
 #include <primitives/block.h>
 #include <txmempool.h>
+#include <net.h>
 
 #include <memory>
 #include <stdint.h>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/thread.hpp>
 
 class CBlockIndex;
 class CChainParams;
@@ -205,6 +207,11 @@ private:
       * of updated descendants. */
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set& mapModifiedTx) EXCLUSIVE_LOCKS_REQUIRED(m_mempool.cs);
 };
+
+#ifdef ENABLE_WALLET
+/** Generate a new block, without valid proof-of-work */
+void StakeNoir(bool fStake, CWallet *pwallet, CConnman* connman, boost::thread_group*& stakeThread);
+#endif
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);

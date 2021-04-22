@@ -617,4 +617,20 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
         UninterruptibleSleep(std::chrono::milliseconds{10000});
     }
 }
+
+void StakeNoir(bool fStake, CWallet *pwallet, CConnman* connman, boost::thread_group*& stakeThread)
+{
+    if (stakeThread != nullptr)
+    {
+        stakeThread->interrupt_all();
+        delete stakeThread;
+        stakeThread = nullptr;
+    }
+
+    if(fStake)
+    {
+        stakeThread = new boost::thread_group();
+        stakeThread->create_thread(boost::bind(&ThreadStakeMiner, pwallet, connman));
+    }
+}
 #endif
