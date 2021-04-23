@@ -97,7 +97,7 @@ void BlockAssembler::resetBlock()
 Optional<int64_t> BlockAssembler::m_last_block_num_txs{nullopt};
 Optional<int64_t> BlockAssembler::m_last_block_weight{nullopt};
 
-std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
+std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, int64_t* pFees)
 {
     int64_t nTimeStart = GetTimeMicros();
 
@@ -184,15 +184,22 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vout.resize(2);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = blkReward;
-    coinbaseTx.vout[1].scriptPubKey = devScript;
-    coinbaseTx.vout[1].nValue = devReward;
-    if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
-        FillBlockPayments(coinbaseTx, nHeight, mstReward, nFees, pblocktemplate->txoutMasternode, pblocktemplate->voutSuperblock);
-        if(pblocktemplate->txoutMasternode == CTxOut()){
-            coinbaseTx.vout[0].nValue = blkReward + mstReward; // do not lose money if no noirnode is found -> pay the miner/staker instead
+    if (nHeight > Params().GetConsensus().nLastPOWBlock)
+    {
+        // Make the coinbase tx empty in case of proof of stake
+        coinbaseTx.vout.resize(1);
+        coinbaseTx.vout[0].SetEmpty();
+    } else {
+        coinbaseTx.vout.resize(2);
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = blkReward;
+        coinbaseTx.vout[1].scriptPubKey = devScript;
+        coinbaseTx.vout[1].nValue = devReward;
+        if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
+            FillBlockPayments(coinbaseTx, nHeight, mstReward, nFees, pblocktemplate->txoutMasternode, pblocktemplate->voutSuperblock);
+            if(pblocktemplate->txoutMasternode == CTxOut()){
+                coinbaseTx.vout[0].nValue = blkReward + mstReward; // do not lose money if no noirnode is found -> pay the miner/staker instead
+            }
         }
     }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
@@ -200,17 +207,25 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
 
+    if (pFees)
+        *pFees = nFees;
+
     LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    if (!(nHeight > Params().GetConsensus().nLastPOWBlock))
+        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+    if (!(nHeight > Params().GetConsensus().nLastPOWBlock)){
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    } else {
+        pblock->nBits          = GetNextTargetRequired(pindexPrev, pblock, chainparams.GetConsensus(), true);
+    }
     pblock->nNonce         = 0;
     pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(*pblock->vtx[0]);
 
     BlockValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+    if (!(nHeight > Params().GetConsensus().nLastPOWBlock) && !TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, state.ToString()));
     }
     int64_t nTime2 = GetTimeMicros();
@@ -591,7 +606,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
             if (pwallet->HaveAvailableCoinsForStaking()) {
                 int64_t nFees = 0;
                 // First just create an empty block. No need to process transactions until we know we can create a block
-                std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(CScript()/*, &nFees*/));
+                std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(CScript(), &nFees));
                 if (!pblocktemplate.get()) {
                     LogPrintf("ThreadStakeMiner(): Could not get Blocktemplate\n");
                     return;
