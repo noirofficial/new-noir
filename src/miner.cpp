@@ -583,7 +583,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
                 pwallet->m_last_coin_stake_search_interval = 0;
                 UninterruptibleSleep(std::chrono::milliseconds{10000});
             }
-            /*while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
+            while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
             {
                 pwallet->m_last_coin_stake_search_interval = 0;
                 fTryToSync = true;
@@ -592,12 +592,15 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
             if (fTryToSync)
             {
                 fTryToSync = false;
-                if (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) < 3 || ::ChainActive().Tip()->GetBlockTime() < GetTime() - 10 * 60)
+                if (!fTestNet) 
                 {
-                    UninterruptibleSleep(std::chrono::milliseconds{60000});
-                    continue;
+                    if (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) < 1 || ::ChainActive().Tip()->GetBlockTime() < GetTime() - 10 * 60)
+                    {
+                        UninterruptibleSleep(std::chrono::milliseconds{60000});
+                        continue;
+                    }
                 }
-            }*/
+            }
 
             //
             // Create new block

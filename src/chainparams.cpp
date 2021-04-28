@@ -204,7 +204,7 @@ public:
         strSporkAddress = "21Xsi3rrmihvAUmCzE2Yh1XehoGjftPDnTf";
 
         // Proof-of-Stake related values
-        consensus.nLastPOWBlock = 10;
+        consensus.nLastPOWBlock = 100;
         consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
