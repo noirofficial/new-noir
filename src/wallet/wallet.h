@@ -1278,9 +1278,6 @@ public:
     void StopStake();
 
     static CConnman* defaultConnman;
-
-    static const bool DEFAULT_STAKE_CACHE = true;
-    static const bool DEFAULT_STAKE = true;
 };
 
 /**
