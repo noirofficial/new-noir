@@ -1260,6 +1260,15 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
                                 {RPCResult::Type::BOOL, "active", "true if the rules are enforced for the mempool and the next block"},
                             }},
                         }},
+                        {RPCResult::Type::OBJ_DYN, "hardforks", "status of hardforks",
+                        {
+                            {RPCResult::Type::OBJ, "xxxx", "name of the softfork",
+                            {
+                                {RPCResult::Type::STR, "type", "\"buried\""},
+                                {RPCResult::Type::BOOL, "active", "true if the rules are enforced for the mempool and the next block"},
+                                {RPCResult::Type::NUM, "height", "height of the first block which the rules are or will be enforced"},
+                            }},
+                        }},
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
                     }},
                 RPCExamples{
@@ -1309,6 +1318,12 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     BuriedForkDescPushBack(softforks, "segwit", consensusParams.SegwitHeight);
     BIP9SoftForkDescPushBack(softforks, "testdummy", consensusParams, Consensus::DEPLOYMENT_TESTDUMMY);
     obj.pushKV("softforks",             softforks);
+
+    UniValue hardforks(UniValue::VOBJ);
+    BuriedForkDescPushBack(hardforks, "Masternode Payments", consensusParams.nMasternodeStartBlock);
+    BuriedForkDescPushBack(hardforks, "Proof of Stake", consensusParams.nLastPOWBlock + 1);
+    //BuriedForkDescPushBack(hardforks, "Privacy Protocol", consensusParams.nPrivacyStart);
+    obj.pushKV("hardforks",             hardforks);
 
     obj.pushKV("warnings", GetWarnings(false));
     return obj;
