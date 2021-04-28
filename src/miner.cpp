@@ -573,7 +573,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
     int nHeight = 0; // initialize
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     bool fTryToSync = true;
-    while (true)
+    while (pwallet)
     {
         CBlockIndex* pindexPrev = ::ChainActive().Tip();
         nHeight = pindexPrev->nHeight + 1;
@@ -584,7 +584,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
                 nLastCoinStakeSearchInterval = 0;
                 UninterruptibleSleep(std::chrono::milliseconds{10000});
             }
-            while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
+            /*while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
             {
                 nLastCoinStakeSearchInterval = 0;
                 fTryToSync = true;
@@ -598,7 +598,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
                     UninterruptibleSleep(std::chrono::milliseconds{60000});
                     continue;
                 }
-            }
+            }*/
 
             //
             // Create new block
@@ -613,6 +613,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
                 }
 
                 // Trying to sign a block
+                LogPrintf("ThreadStakeMiner(): Try SignBlock()\n");
                 if (SignBlock(*pwallet, nFees, pblocktemplate.get()))
                 {
                     // increase priority

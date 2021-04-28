@@ -828,13 +828,10 @@ public:
 
     /**
      * populate vCoins with vector of available COutputs.
-     */
-    void AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const bool bIncludeLocked = false) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    
-    /**
-     * Proof-of_stake
+     * Proof-of-stake
      */
     void AvailableCoinsForStaking(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins) const;
+    void AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const bool bIncludeLocked = false) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool HaveAvailableCoinsForStaking() const;
     bool SelectCoinsForStaking(interfaces::Chain::Lock& locked_chain, CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
     uint64_t GetStakeWeight(interfaces::Chain::Lock& locked_chain) const;

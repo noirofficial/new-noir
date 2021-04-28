@@ -320,7 +320,7 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
         LOCK(pwallet->cs_wallet);
         auto locked_chain = pwallet->chain().lock();
         nWeight = pwallet->GetStakeWeight(*locked_chain);
-        lastCoinStakeSearchInterval = pwallet->m_enabled_staking ? pwallet->m_last_coin_stake_search_interval : 0;
+        lastCoinStakeSearchInterval = pwallet->m_enabled_staking ? nLastCoinStakeSearchInterval : 0;
     }
 #endif
 
@@ -343,7 +343,6 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
     obj.pushKV("search-interval", (int)lastCoinStakeSearchInterval);
 
     obj.pushKV("weight", (uint64_t)nStakerWeight);
-    obj.pushKV("delegateweight", (uint64_t)nDelegateWeight);
     obj.pushKV("netstakeweight", (uint64_t)nNetworkWeight);
 
     obj.pushKV("expectedtime", nExpectedTime);

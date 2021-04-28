@@ -2336,7 +2336,7 @@ void CWallet::AvailableCoinsForStaking(interfaces::Chain::Lock& locked_chain, st
         if (nDepth < 1)
             continue;
 
-        if (nDepth < COINBASE_MATURITY)
+        if (nDepth < Params().GetConsensus().nCoinbaseMaturity)
             continue;
 
         if (pcoin->GetBlocksToMaturity() > 0)
@@ -2432,7 +2432,7 @@ uint64_t CWallet::GetStakeWeight(interfaces::Chain::Lock& locked_chain) const
 
     for(std::pair<const CWalletTx*,unsigned int> pcoin : setCoins)
     {
-        if (pcoin.first->GetDepthInMainChain() >= COINBASE_MATURITY)
+        if (pcoin.first->GetDepthInMainChain() >= Params().GetConsensus().nCoinbaseMaturity)
             nWeight += pcoin.first->tx->vout[pcoin.second].nValue;
     }
 
@@ -4666,7 +4666,7 @@ int CWalletTx::GetBlocksToMaturity() const
         return 0;
     int chain_depth = GetDepthInMainChain();
     assert(chain_depth >= 0); // coinbase tx should not be conflicted
-    return std::max(0, (COINBASE_MATURITY+1) - chain_depth);
+    return std::max(0, (Params().GetConsensus().nCoinbaseMaturity+1) - chain_depth);
 }
 
 bool CWalletTx::IsImmature() const

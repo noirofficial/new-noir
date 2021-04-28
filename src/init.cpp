@@ -59,6 +59,9 @@
 
 #include <validationinterface.h>
 #include <walletinitinterface.h>
+#ifdef ENABLE_WALLET
+#include <wallet/wallet.h>
+#endif
 
 #include <stdint.h>
 #include <stdio.h>
@@ -1419,6 +1422,10 @@ bool AppInitMain(NodeContext& node)
 
     node.peer_logic.reset(new PeerLogicValidation(node.connman.get(), node.banman.get(), *node.scheduler, *node.mempool));
     RegisterValidationInterface(node.peer_logic.get());
+
+#ifdef ENABLE_WALLET
+    CWallet::defaultConnman = node.connman.get();
+#endif
 
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector<std::string> uacomments;

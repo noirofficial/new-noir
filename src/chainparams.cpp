@@ -78,6 +78,7 @@ public:
         consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 150 * 3; // 7.5 minutes
         consensus.nPowTargetSpacing = 150; // 2.5 minutes
+        consensus.nCoinbaseMaturity = 100; 
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 19; // 95% of nMinerConfirmationWindow
@@ -183,6 +184,7 @@ public:
         consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 150 * 3; // two weeks
         consensus.nPowTargetSpacing = 150;
+        consensus.nCoinbaseMaturity = 2; 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 15; // 75% for testchains
@@ -202,7 +204,7 @@ public:
         strSporkAddress = "21Xsi3rrmihvAUmCzE2Yh1XehoGjftPDnTf";
 
         // Proof-of-Stake related values
-        consensus.nLastPOWBlock = 1000;
+        consensus.nLastPOWBlock = 10;
         consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
@@ -280,6 +282,7 @@ public:
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
+        consensus.nCoinbaseMaturity = 1; 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
@@ -413,6 +416,10 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
 static std::unique_ptr<const CChainParams> globalChainParams;
 
 const CChainParams &Params() {
+    assert(globalChainParams);
+    return *globalChainParams;
+}
+const CChainParams &CParams() {
     assert(globalChainParams);
     return *globalChainParams;
 }

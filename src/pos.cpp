@@ -127,8 +127,8 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed", strprintf("CheckProofOfStake() : VerifySignature failed on coinstake %s", tx.GetHash().ToString()));
 
     // Min age requirement
-    if (pindexPrev->nHeight + 1 - coinPrev.nHeight < COINBASE_MATURITY)
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-prevout-not-mature", strprintf("CheckProofOfStake() : Stake prevout is not mature, expecting %i and only matured to %i", COINBASE_MATURITY, pindexPrev->nHeight + 1 - coinPrev.nHeight));
+    if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nCoinbaseMaturity)
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-prevout-not-mature", strprintf("CheckProofOfStake() : Stake prevout is not mature, expecting %i and only matured to %i", Params().GetConsensus().nCoinbaseMaturity, pindexPrev->nHeight + 1 - coinPrev.nHeight));
 
     if (!CheckStakeKernelHash(pindexPrev, nBits, pindexPrev->GetBlockTime(), coinPrev.out.nValue, txin.prevout, nBlockTime))
         return state.Invalid(BlockValidationResult::BLOCK_HEADER_SYNC, "stake-check-kernel-failed", strprintf("CheckProofOfStake() : INFO: check kernel failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
@@ -172,7 +172,7 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
             return error("CheckKernel(): Could not find coin and it was not at the tip");
         }
 
-        if(pindexPrev->nHeight + 1 - coinPrev.nHeight < COINBASE_MATURITY){
+        if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nCoinbaseMaturity){
             return error("CheckKernel(): Coin not matured");
         }
         CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
@@ -207,7 +207,7 @@ void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevo
         return;
     }
 
-    if(pindexPrev->nHeight + 1 - coinPrev.nHeight < COINBASE_MATURITY){
+    if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nCoinbaseMaturity){
         return;
     }
     CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);

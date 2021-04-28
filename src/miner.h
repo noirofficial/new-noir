@@ -154,9 +154,6 @@ private:
     int64_t nLockTimeCutoff;
     const CChainParams& chainparams;
     const CTxMemPool& m_mempool;
-#ifdef ENABLE_WALLET
-    CWallet *pwallet = 0;
-#endif
 
 public:
     struct Options {

@@ -710,7 +710,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     m_pool.ApplyDelta(hash, nModifiedFees);
 
     // Keep track of transactions that spend a coinbase, which we re-scan
-    // during reorgs to ensure COINBASE_MATURITY is still met.
+    // during reorgs to ensure nCoinbaseMaturity is still met.
     bool fSpendsCoinbase = false;
     for (const CTxIn &txin : tx.vin) {
         const Coin &coin = m_view.AccessCoin(txin.prevout);
@@ -1179,8 +1179,9 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    if (!block.IsProofOfStake())
+        if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+            return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
 }
@@ -3448,9 +3449,17 @@ static bool CheckBlockSignature(const CBlock& block)
 
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
+    CBlockIndex *pindexPrev = nullptr;
+    int nHeight = 0;
+    BlockMap::iterator mi = g_blockman.m_block_index.find(block.hashPrevBlock);
+    if (mi != g_blockman.m_block_index.end()) {
+        pindexPrev = (*mi).second;
+        nHeight = pindexPrev->nHeight + 1;
+    }
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
+    if (nHeight <= consensusParams.nLastPOWBlock)
+        if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
 }
@@ -3464,8 +3473,9 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
-        return false;
+    if (!block.IsProofOfStake())
+        if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW))
+            return false;
 
     // Check the merkle root.
     if (fCheckMerkleRoot) {
@@ -3633,8 +3643,9 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
 
     // Check proof of work
     const Consensus::Params& consensusParams = params.GetConsensus();
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
+    if (nHeight <= consensusParams.nLastPOWBlock)
+        if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 
     // Check against checkpoints
     if (fCheckpointsEnabled) {
@@ -3798,6 +3809,7 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
                 txCoinBase.vin[0].prevout.SetNull();
                 txCoinBase.vout.resize(1);
                 txCoinBase.vout[0].SetEmpty();
+                txCoinBase.vin[0].scriptSig = CScript() << ::ChainActive().Tip()->nHeight + 1 << OP_0;
                 block->vtx.insert(block->vtx.begin(), MakeTransactionRef(txCoinBase));
                 block->vtx.insert(block->vtx.begin() + 1, MakeTransactionRef(txCoinStake));
                 // insert witness commitment
