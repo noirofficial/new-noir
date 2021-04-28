@@ -3786,7 +3786,7 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
         return true;
     }
 
-    wallet.m_last_coin_stake_search_interval = GetAdjustedTime(); // startup timestamp
+    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
     CKey key;
     CMutableTransaction txCoinBase;
     CMutableTransaction txCoinStake;
@@ -3797,7 +3797,7 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
     LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
     if(!spk_man)
         return false;
-    if (nSearchTime > wallet.m_last_coin_stake_search_interval )
+    if (nSearchTime > nLastCoinStakeSearchTime)
     {
         if (wallet.CreateCoinStake(*locked_chain, *spk_man, block->nBits, nSearchTime, 1, nFees, txCoinStake, key, pblocktemplate))
         {
@@ -3823,8 +3823,8 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
                 return key.Sign(block->GetHash(), block->vchBlockSig);
             }
         }
-        wallet.m_last_coin_stake_search_interval = nSearchTime - wallet.m_last_coin_stake_search_interval;
-        wallet.m_last_coin_stake_search_interval = nSearchTime;
+        wallet.m_last_coin_stake_search_interval = nSearchTime - nLastCoinStakeSearchTime;
+        nLastCoinStakeSearchTime = nSearchTime;
     }
     return false;
 }
