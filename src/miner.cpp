@@ -514,7 +514,6 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
 uint64_t nLastBlockTx = 0;
 uint64_t nLastBlockSize = 0;
 uint64_t nLastBlockWeight = 0;
-int64_t nLastCoinStakeSearchInterval = 0;
 unsigned int nMinerSleep = 500;
 
 bool CheckStake(const std::shared_ptr<const CBlock> pblock, CWallet& wallet)
@@ -581,12 +580,12 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
         {
             while (pwallet->IsLocked())
             {
-                nLastCoinStakeSearchInterval = 0;
+                pwallet->m_last_coin_stake_search_interval = 0;
                 UninterruptibleSleep(std::chrono::milliseconds{10000});
             }
             /*while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
             {
-                nLastCoinStakeSearchInterval = 0;
+                pwallet->m_last_coin_stake_search_interval = 0;
                 fTryToSync = true;
                 UninterruptibleSleep(std::chrono::milliseconds{1000});
             }

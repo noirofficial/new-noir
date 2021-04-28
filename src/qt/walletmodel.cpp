@@ -38,7 +38,9 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, interfaces:
     transactionTableModel(nullptr),
     recentRequestsTableModel(nullptr),
     cachedEncryptionStatus(Unencrypted),
-    cachedNumBlocks(0)
+    cachedNumBlocks(0),
+    nWeight(0),
+    updateStakeWeight(true)
 {
     fHaveWatchOnly = m_wallet->haveWatchOnly();
     addressTableModel = new AddressTableModel(this);
@@ -569,4 +571,27 @@ QString WalletModel::getDisplayName() const
 bool WalletModel::isMultiwallet()
 {
     return m_node.getWallets().size() > 1;
+}
+
+uint64_t WalletModel::getStakeWeight()
+{
+    return nWeight;
+}
+
+bool WalletModel::getWalletUnlockStakingOnly()
+{
+    return m_wallet->getWalletUnlockStakingOnly();
+}
+
+void WalletModel::setWalletUnlockStakingOnly(bool unlock)
+{
+    m_wallet->setWalletUnlockStakingOnly(unlock);
+}
+
+void WalletModel::checkStakeWeightChanged()
+{
+    if(updateStakeWeight && m_wallet->tryGetStakeWeight(nWeight))
+    {
+        updateStakeWeight = false;
+    }
 }

@@ -2413,6 +2413,8 @@ uint64_t CWallet::GetStakeWeight(interfaces::Chain::Lock& locked_chain) const
     // Choose coins to use
     CAmount nBalance = GetBalance().m_mine_trusted;
 
+    LogPrintf("GetStakeWeight(): nBalance=%d\n", nBalance);
+
     if (nBalance <= nReserveBalance)
         return 0;
 
@@ -2435,6 +2437,7 @@ uint64_t CWallet::GetStakeWeight(interfaces::Chain::Lock& locked_chain) const
         if (pcoin.first->GetDepthInMainChain() >= Params().GetConsensus().nCoinbaseMaturity)
             nWeight += pcoin.first->tx->vout[pcoin.second].nValue;
     }
+    LogPrintf("GetStakeWeight(): nWeight=%d\n", nWeight);
 
     return nWeight;
 }

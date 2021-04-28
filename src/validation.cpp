@@ -3276,7 +3276,9 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block)
 
 /** Mark a block as having its data received and checked (up to BLOCK_VALID_TRANSACTIONS). */
 void CChainState::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pindexNew, const FlatFilePos& pos, const Consensus::Params& consensusParams)
-{
+{ 
+    if (block.IsProofOfStake())
+            pindexNew->SetProofOfStake();
     pindexNew->nTx = block.vtx.size();
     pindexNew->nChainTx = 0;
     pindexNew->nFile = pos.nFile;
@@ -3690,7 +3692,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
 
     // Start enforcing BIP113 (Median Time Past).
     int nLockTimeFlags = 0;
-    if (nHeight >= consensusParams.CSVHeight) {
+    if (nHeight > consensusParams.CSVHeight) {
         assert(pindexPrev != nullptr);
         nLockTimeFlags |= LOCKTIME_MEDIAN_TIME_PAST;
     }
@@ -3707,7 +3709,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     }
 
     // Enforce rule that the coinbase starts with serialized block height
-    if (nHeight >= consensusParams.BIP34Height)
+    if (nHeight > consensusParams.BIP34Height)
     {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
@@ -3783,7 +3785,8 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
         LogPrintf("trying to sign a complete proof-of-stake block\n");
         return true;
     }
-    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
+
+    wallet.m_last_coin_stake_search_interval = GetAdjustedTime(); // startup timestamp
     CKey key;
     CMutableTransaction txCoinBase;
     CMutableTransaction txCoinStake;
@@ -3794,7 +3797,7 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
     LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
     if(!spk_man)
         return false;
-    if (nSearchTime > nLastCoinStakeSearchTime)
+    if (nSearchTime > wallet.m_last_coin_stake_search_interval )
     {
         if (wallet.CreateCoinStake(*locked_chain, *spk_man, block->nBits, nSearchTime, 1, nFees, txCoinStake, key, pblocktemplate))
         {
@@ -3820,8 +3823,8 @@ bool SignBlock(CWallet& wallet, int64_t& nFees, CBlockTemplate *pblocktemplate)
                 return key.Sign(block->GetHash(), block->vchBlockSig);
             }
         }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-        nLastCoinStakeSearchTime = nSearchTime;
+        wallet.m_last_coin_stake_search_interval = nSearchTime - wallet.m_last_coin_stake_search_interval;
+        wallet.m_last_coin_stake_search_interval = nSearchTime;
     }
     return false;
 }
@@ -3906,6 +3909,9 @@ bool BlockManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationS
     }
     if (pindex == nullptr)
         pindex = AddToBlockIndex(block);
+
+    if (pindex->nHeight > chainparams.GetConsensus().nLastPOWBlock)
+        pindex->SetProofOfStake();
 
     if (ppindex)
         *ppindex = pindex;
