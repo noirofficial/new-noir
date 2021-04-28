@@ -208,10 +208,10 @@ public:
         consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001495c1d5a01e2af8a23");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x000000000000056c49030c174179b52a928c870e6e8a822c75973b7970cfbd01"); // 1692000
+        consensus.defaultAssumeValid = uint256S("0x00000dc0f9a616345cb61c95b51f9863d3a3c3978561304670f89464ff9f3b90"); // 1692000
 
         pchMessageStart[0] = 0x5a;
         pchMessageStart[1] = 0x6f;
