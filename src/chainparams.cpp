@@ -204,7 +204,7 @@ public:
         strSporkAddress = "21Xsi3rrmihvAUmCzE2Yh1XehoGjftPDnTf";
 
         // Proof-of-Stake related values
-        consensus.nLastPOWBlock = 100;
+        consensus.nLastPOWBlock = 199;
         consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
@@ -230,6 +230,7 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
+        vSeeds.emplace_back("explorer.flo071.com");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,145);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,115);

@@ -57,8 +57,11 @@ static std::vector<std::shared_ptr<CWallet>> vpwallets GUARDED_BY(cs_wallets);
 static std::list<LoadWalletFn> g_load_wallet_fns GUARDED_BY(cs_wallets);
 CAmount nReserveBalance = 0;
 
-static int64_t GetStakeCombineThreshold() { return 500 * COIN; }
-static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
+static int64_t GetStakeCombineThreshold(bool fTestNet) { 
+    int64_t combine = (fTestNet) ? 50 * COIN : 500 * COIN; 
+    return combine;
+}
+static int64_t GetStakeSplitThreshold(bool fTestNet) { return 2 * GetStakeCombineThreshold(fTestNet); }
 CConnman* CWallet::defaultConnman = 0;
 
 bool AddWallet(const std::shared_ptr<CWallet>& wallet)
@@ -2574,6 +2577,8 @@ bool CWallet::CreateCoinStake(interfaces::Chain::Lock& locked_chain, const Filla
         if (fKernelFound)
             break; // if kernel is found stop searching
     }
+    // Determne if we are in Testnet, as the parameters differ a bit.
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return false;
@@ -2592,7 +2597,7 @@ bool CWallet::CreateCoinStake(interfaces::Chain::Lock& locked_chain, const Filla
             if (nCredit + pcoin.first->tx->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->tx->vout[pcoin.second].nValue >= GetStakeCombineThreshold())
+            if (pcoin.first->tx->vout[pcoin.second].nValue >= GetStakeCombineThreshold(fTestNet))
                 continue;
 
             txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
@@ -2601,7 +2606,7 @@ bool CWallet::CreateCoinStake(interfaces::Chain::Lock& locked_chain, const Filla
         }
     }
 
-    if (nCredit >= GetStakeSplitThreshold())
+    if (nCredit >= GetStakeSplitThreshold(fTestNet))
         txNew.vout.push_back(CTxOut(0, txNew.vout[1].scriptPubKey)); //split stake
 
     // Set output amount
@@ -2630,7 +2635,6 @@ bool CWallet::CreateCoinStake(interfaces::Chain::Lock& locked_chain, const Filla
 
         CScript devScript;
         
-        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
         if (!fTestNet)
         { 
             devScript = GetScriptForDestination(DecodeDestination("nor1qn7zqg757kvxxe9xhay5xqlu9eyfv8kw402f8l9")); // mainnet
