@@ -78,7 +78,7 @@ public:
         cachedWallet.clear();
         {
             for (const auto& wtx : wallet.getWalletTxs()) {
-                if (TransactionRecord::showTransaction()) {
+                if (TransactionRecord::showTransaction(wtx)) {
                     cachedWallet.append(TransactionRecord::decomposeTransaction(wtx));
                 }
             }
@@ -93,6 +93,10 @@ public:
     void updateWallet(interfaces::Wallet& wallet, const uint256 &hash, int status, bool showTransaction)
     {
         qDebug() << "TransactionTablePriv::updateWallet: " + QString::fromStdString(hash.ToString()) + " " + QString::number(status);
+        // Find transaction in wallet
+        interfaces::WalletTx wtx = wallet.getWalletTx(hash);
+        // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
+        showTransaction = TransactionRecord::showTransaction(wtx);
 
         // Find bounds of this transaction in model
         QList<TransactionRecord>::iterator lower = std::lower_bound(
@@ -353,6 +357,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
     case TransactionRecord::Generated:
         return tr("Mined");
+    case TransactionRecord::Staked:
+        return tr("Staked");
     default:
         return QString();
     }
@@ -362,6 +368,7 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
 {
     switch(wtx->type)
     {
+    case TransactionRecord::Staked:
     case TransactionRecord::Generated:
         return QIcon(":/icons/tx_mined");
     case TransactionRecord::RecvWithAddress:
@@ -390,6 +397,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::Staked:
         return lookupAddress(wtx->address, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
@@ -408,6 +416,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::Staked:
         {
         QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));
         if(label.isEmpty())
@@ -707,11 +716,7 @@ static std::vector< TransactionNotification > vQueueNotifications;
 
 static void NotifyTransactionChanged(TransactionTableModel *ttm, const uint256 &hash, ChangeType status)
 {
-    // Find transaction in wallet
-    // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
-    bool showTransaction = TransactionRecord::showTransaction();
-
-    TransactionNotification notification(hash, status, showTransaction);
+    TransactionNotification notification(hash, status, true);
 
     if (fQueueNotifications)
     {
