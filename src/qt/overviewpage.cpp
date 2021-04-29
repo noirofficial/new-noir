@@ -15,6 +15,8 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/walletmodel.h>
 
+#include <miner.h>
+
 #include <QAbstractItemDelegate>
 #include <QPainter>
 
@@ -118,6 +120,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     txdelegate(new TxViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
+    
+    ui->checkStake->setEnabled(gArgs.GetBoolArg("-staking", DEFAULT_STAKE));
 
     m_balances.balance = -1;
 
@@ -223,6 +227,10 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
+    if(this->walletModel)
+    {
+        ui->checkStake->setChecked(this->walletModel->wallet().getEnabledStaking());
+    }
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
@@ -280,4 +288,9 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+void OverviewPage::on_checkStake_clicked(bool checked)
+{
+    this->walletModel->wallet().setEnabledStaking(checked);
 }

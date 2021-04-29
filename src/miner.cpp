@@ -578,7 +578,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
         nHeight = pindexPrev->nHeight + 1;
         if (nHeight > Params().GetConsensus().nLastPOWBlock)
         {
-            while (pwallet->IsLocked())
+            while (pwallet->IsLocked() || !pwallet->m_enabled_staking)
             {
                 pwallet->m_last_coin_stake_search_interval = 0;
                 UninterruptibleSleep(std::chrono::milliseconds{10000});
