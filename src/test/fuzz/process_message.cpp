@@ -49,7 +49,7 @@ void initialize()
     static RegTestingSetup setup{};
     g_setup = &setup;
 
-    for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {
+    for (int i = 0; i < 2 * Params().GetConsensus().nCoinbaseMaturity; i++) {
         MineBlock(g_setup->m_node, CScript() << OP_TRUE);
     }
     SyncWithValidationInterfaceQueue();

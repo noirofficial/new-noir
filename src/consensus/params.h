@@ -80,6 +80,7 @@ struct Params {
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
+    int nCoinbaseMaturity;
 
     int nMasternodeStartBlock;
     int nSuperblockStartBlock;
@@ -88,6 +89,11 @@ struct Params {
     int nGovernanceFilterElements;
     int nMasternodeMinimumConfirmations;
     int nMasternodeCollateralRequired;
+
+    /** Proof of stake parameters */
+    uint256 posLimit;
+    int nLastPOWBlock;
+    int nStakeTimestampMask;
 };
 } // namespace Consensus
 

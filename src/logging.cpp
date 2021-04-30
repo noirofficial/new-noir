@@ -170,6 +170,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::MNSYNC, "mnsync"},
     {BCLog::SPORK, "spork"},
     {BCLog::NOR, "noir"},
+    {BCLog::COINSTAKE, "coinstake"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 };

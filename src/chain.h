@@ -127,6 +127,10 @@ enum BlockStatus: uint32_t {
     BLOCK_FAILED_MASK        =   BLOCK_FAILED_VALID | BLOCK_FAILED_CHILD,
 
     BLOCK_OPT_WITNESS       =   128, //!< block data in blk*.data was received with a witness-enforcing client
+
+    BLOCK_PROOF_OF_STAKE     =   256, //! is proof-of-stake block
+    BLOCK_STAKE_ENTROPY      =   512,
+    BLOCK_STAKE_MODIFIER     =   1024,
 };
 
 /** The block chain is a tree shaped structure starting with the
@@ -172,6 +176,9 @@ public:
 
     //! Verification status of this block. See enum BlockStatus
     uint32_t nStatus{0};
+
+    //! hash modifier of proof-of-stake
+    uint256 nStakeModifier{};
 
     //! block header
     int32_t nVersion{0};
@@ -270,6 +277,26 @@ public:
         return pbegin[(pend - pbegin)/2];
     }
 
+    int64_t GetPastTimeLimit() const
+    {
+        return GetMedianTimePast();
+    }
+
+    bool IsProofOfWork() const
+    {
+        return !IsProofOfStake();
+    }
+
+    bool IsProofOfStake() const
+    {
+        return (nStatus & BLOCK_PROOF_OF_STAKE);
+    }
+
+    void SetProofOfStake()
+    {
+        nStatus |= BLOCK_PROOF_OF_STAKE;
+    }
+
     std::string ToString() const
     {
         return strprintf("CBlockIndex(pprev=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
@@ -349,6 +376,11 @@ public:
         READWRITE(obj.nTime);
         READWRITE(obj.nBits);
         READWRITE(obj.nNonce);
+
+        // PoS
+        if (obj.IsProofOfStake()) {
+            READWRITE(obj.nStakeModifier);
+        }
     }
 
     uint256 GetBlockHash() const
@@ -434,5 +466,6 @@ public:
     /** Find the earliest block with timestamp equal or greater than the given time and height equal or greater than the given height. */
     CBlockIndex* FindEarliestAtLeast(int64_t nTime, int height) const;
 };
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 
 #endif // BITCOIN_CHAIN_H

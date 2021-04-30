@@ -75,8 +75,10 @@ public:
         consensus.SegwitHeight = 0; // 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
         consensus.MinBIP9WarningHeight = 20; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
-        consensus.nPowTargetTimespan = 150 * 3; // two weeks
-        consensus.nPowTargetSpacing = 150;
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nPowTargetTimespan = 150 * 3; // 7.5 minutes
+        consensus.nPowTargetSpacing = 150; // 2.5 minutes
+        consensus.nCoinbaseMaturity = 100; 
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 19; // 95% of nMinerConfirmationWindow
@@ -94,6 +96,10 @@ public:
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkAddress = "zeeR5vSFMFb42Fq8Ve4HCpEAFLS69i15aN";
+
+        // Proof-of-Stake related values
+        consensus.nLastPOWBlock = 551000;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
@@ -175,8 +181,10 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 150 * 3; // two weeks
         consensus.nPowTargetSpacing = 150;
+        consensus.nCoinbaseMaturity = 2; 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 15; // 75% for testchains
@@ -193,13 +201,17 @@ public:
         consensus.nGovernanceMinQuorum = 10; 
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkAddress = "";
+        strSporkAddress = "21Xsi3rrmihvAUmCzE2Yh1XehoGjftPDnTf";
+
+        // Proof-of-Stake related values
+        consensus.nLastPOWBlock = 199;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001495c1d5a01e2af8a23");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x000000000000056c49030c174179b52a928c870e6e8a822c75973b7970cfbd01"); // 1692000
+        consensus.defaultAssumeValid = uint256S("0x00000dc0f9a616345cb61c95b51f9863d3a3c3978561304670f89464ff9f3b90"); // 1692000
 
         pchMessageStart[0] = 0x5a;
         pchMessageStart[1] = 0x6f;
@@ -218,6 +230,7 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
+        vSeeds.emplace_back("explorer.flo071.com");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,145);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,115);
@@ -270,6 +283,7 @@ public:
         consensus.powLimit = uint256S("00000ffff0000000000000000000000000000000000000000000000000000000");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
+        consensus.nCoinbaseMaturity = 1; 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
@@ -287,6 +301,11 @@ public:
         consensus.nGovernanceFilterElements = 20000;
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
         strSporkAddress = "";
+
+        // Proof-of-Stake related values
+        consensus.posLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nLastPOWBlock = 551000;
+        consensus.nStakeTimestampMask = 0xf; // 15
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -398,6 +417,10 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
 static std::unique_ptr<const CChainParams> globalChainParams;
 
 const CChainParams &Params() {
+    assert(globalChainParams);
+    return *globalChainParams;
+}
+const CChainParams &CParams() {
     assert(globalChainParams);
     return *globalChainParams;
 }

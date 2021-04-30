@@ -9,8 +9,11 @@
 #include <amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
+#include <miner.h>
+#include <net.h>
 #include <outputtype.h>
 #include <policy/feerate.h>
+#include <pos.h>
 #include <psbt.h>
 #include <tinyformat.h>
 #include <ui_interface.h>
@@ -37,8 +40,11 @@
 #include <vector>
 
 #include <boost/signals2/signal.hpp>
+#include <boost/thread.hpp>
 
 using LoadWalletFn = std::function<void(std::unique_ptr<interfaces::Wallet> wallet)>;
+
+extern CAmount nReserveBalance;
 
 //! Explicitly unload and delete the wallet.
 //! Blocks the current thread after signaling the unload intent so that all
@@ -551,6 +557,13 @@ public:
     const uint256& GetHash() const { return tx->GetHash(); }
     bool IsCoinBase() const { return tx->IsCoinBase(); }
     bool IsImmatureCoinBase() const;
+
+    // Proof-of-Stake
+    bool IsImmature() const;
+    bool IsCoinStake() const { return tx->IsCoinStake(); }
+    bool IsImmatureCoinStake() const;
+    CAmount GetStakeWatchOnlyCredit(const bool fUseCache=true) const;
+    CAmount GetStakeCredit(bool fUseCache=true) const;
 };
 
 class COutput
@@ -630,6 +643,8 @@ private:
     std::mutex mutexScanning;
     friend class WalletRescanReserver;
 
+    std::map<COutPoint, CStakeCache> stakeCache;
+
     //! the current wallet version: clients below this version are not able to load the wallet
     int nWalletVersion GUARDED_BY(cs_wallet){FEATURE_BASE};
 
@@ -651,6 +666,8 @@ private:
     TxSpends mapTxSpends GUARDED_BY(cs_wallet);
     void AddToSpends(const COutPoint& outpoint, const uint256& wtxid) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void AddToSpends(const uint256& wtxid) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void RemoveFromSpends(const COutPoint& outpoint, const uint256& wtxid); EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void RemoveFromSpends(const uint256& wtxid) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /**
      * Add a transaction to the wallet, or update it.  pIndex and posInBlock should
@@ -721,6 +738,12 @@ private:
     // ScriptPubKeyMan::GetID. In many cases it will be the hash of an internal structure
     std::map<uint256, std::unique_ptr<ScriptPubKeyMan>> m_spk_managers;
 
+    /**
+     * Wallet staking coins.
+     */
+    boost::thread_group* stakeThread = nullptr;
+    void StakeNoir(bool fStake, CConnman* connman);
+
 public:
     /*
      * Main wallet lock.
@@ -765,6 +788,9 @@ public:
 
     ~CWallet()
     {
+        // Stop stake
+        StopStake();
+
         // Should not have slots connected at this point.
         assert(NotifyUnload.empty());
     }
@@ -802,8 +828,15 @@ public:
 
     /**
      * populate vCoins with vector of available COutputs.
+     * Proof-of-stake
      */
+    void AvailableCoinsForStaking(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins) const;
     void AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<COutput>& vCoins, bool fOnlySafe = true, const CCoinControl* coinControl = nullptr, const CAmount& nMinimumAmount = 1, const CAmount& nMaximumAmount = MAX_MONEY, const CAmount& nMinimumSumAmount = MAX_MONEY, const uint64_t nMaximumCount = 0, const bool bIncludeLocked = false) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool HaveAvailableCoinsForStaking() const;
+    bool SelectCoinsForStaking(interfaces::Chain::Lock& locked_chain, CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
+    uint64_t GetStakeWeight(interfaces::Chain::Lock& locked_chain) const;
+    bool CreateCoinStake(interfaces::Chain::Lock& locked_chain, const FillableSigningProvider& keystore, unsigned int nBits, int64_t nTime, int64_t nSearchInterval, CAmount& nFees, CMutableTransaction& tx, CKey& key, CBlockTemplate *pblocktemplate);
+
 
     /**
      * Return list of available coins and locked coins grouped by non-change output address.
@@ -917,9 +950,11 @@ public:
         CAmount m_mine_trusted{0};           //!< Trusted, at depth=GetBalance.min_depth or more
         CAmount m_mine_untrusted_pending{0}; //!< Untrusted, but in mempool (pending)
         CAmount m_mine_immature{0};          //!< Immature coinbases in the main chain
+        CAmount m_mine_stake{0};
         CAmount m_watchonly_trusted{0};
         CAmount m_watchonly_untrusted_pending{0};
         CAmount m_watchonly_immature{0};
+        CAmount m_watchonly_stake{0};
     };
     Balance GetBalance(int min_depth = 0, bool avoid_reuse = true) const;
     CAmount GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
@@ -1006,6 +1041,11 @@ public:
     /** Absolute maximum transaction fee (in satoshis) used by default for the wallet */
     CAmount m_default_max_tx_fee{DEFAULT_TRANSACTION_MAXFEE};
 
+    std::atomic<bool> m_wallet_unlock_staking_only{false};
+    int64_t m_last_coin_stake_search_time{0};
+    int64_t m_last_coin_stake_search_interval{0};
+    std::atomic<bool> m_enabled_staking{false};
+
     size_t KeypoolCountExternalKeys() const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool TopUpKeyPool(unsigned int kpSize = 0);
 
@@ -1066,6 +1106,9 @@ public:
 
     //! get the current wallet format (the oldest client version guaranteed to understand this wallet)
     int GetVersion() const { LOCK(cs_wallet); return nWalletVersion; }
+
+    //! disable transaction for coinstake
+    void DisableTransaction(const CTransaction &tx);   
 
     //! Get wallet transactions that conflict with given transaction (spend same outputs)
     std::set<uint256> GetConflicts(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -1227,6 +1270,14 @@ public:
 
     //! Connect the signals from ScriptPubKeyMans to the signals in CWallet
     void ConnectScriptPubKeyManNotifiers();
+
+    /* Start staking noir */
+    void StartStake(CConnman* connman = CWallet::defaultConnman);
+
+    /* Stop staking noir */
+    void StopStake();
+
+    static CConnman* defaultConnman;
 };
 
 /**

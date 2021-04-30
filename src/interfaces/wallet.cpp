@@ -55,6 +55,8 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.time = wtx.GetTxTime();
     result.value_map = wtx.mapValue;
     result.is_coinbase = wtx.IsCoinBase();
+    result.is_coinstake = wtx.IsCoinStake();
+    result.is_in_main_chain = wtx.IsInMainChain();
     return result;
 }
 
@@ -370,11 +372,13 @@ public:
         result.balance = bal.m_mine_trusted;
         result.unconfirmed_balance = bal.m_mine_untrusted_pending;
         result.immature_balance = bal.m_mine_immature;
+        result.stake = bal.m_mine_stake;
         result.have_watch_only = haveWatchOnly();
         if (result.have_watch_only) {
             result.watch_only_balance = bal.m_watchonly_trusted;
             result.unconfirmed_watch_only_balance = bal.m_watchonly_untrusted_pending;
             result.immature_watch_only_balance = bal.m_watchonly_immature;
+            result.watch_only_stake = bal.m_watchonly_stake;
         }
         return result;
     }
@@ -475,6 +479,46 @@ public:
     void remove() override
     {
         RemoveWallet(m_wallet);
+    }
+    bool tryGetStakeWeight(uint64_t& nWeight) override
+    {
+        auto locked_chain = m_wallet->chain().lock(true);
+        if (!locked_chain) {
+            return false;
+        }
+        TRY_LOCK(m_wallet->cs_wallet, locked_wallet);
+        if (!locked_wallet) {
+            return false;
+        }
+
+        nWeight = m_wallet->GetStakeWeight(*locked_chain);
+        return true;
+    }
+    uint64_t getStakeWeight() override
+    {
+        auto locked_chain = m_wallet->chain().lock();
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetStakeWeight(*locked_chain);
+    }
+    int64_t getLastCoinStakeSearchInterval() override 
+    { 
+        return m_wallet->m_last_coin_stake_search_interval;
+    }
+    bool getWalletUnlockStakingOnly() override
+    {
+        return m_wallet->m_wallet_unlock_staking_only;
+    }
+    void setWalletUnlockStakingOnly(bool unlock) override
+    {
+        m_wallet->m_wallet_unlock_staking_only = unlock;
+    }
+    void setEnabledStaking(bool enabled) override
+    {
+        m_wallet->m_enabled_staking = enabled;
+    }
+    bool getEnabledStaking() override
+    {
+        return m_wallet->m_enabled_staking;
     }
     std::unique_ptr<Handler> handleUnload(UnloadFn fn) override
     {

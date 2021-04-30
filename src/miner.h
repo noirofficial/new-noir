@@ -9,21 +9,29 @@
 #include <optional.h>
 #include <primitives/block.h>
 #include <txmempool.h>
-#include <validation.h>
+#include <net.h>
 
 #include <memory>
 #include <stdint.h>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/thread.hpp>
 
 class CBlockIndex;
 class CChainParams;
 class CScript;
+#ifdef ENABLE_WALLET
+class CWallet;
+#endif
 
 namespace Consensus { struct Params; };
 
 static const bool DEFAULT_PRINTPRIORITY = false;
+
+static const bool DEFAULT_STAKE = true;
+
+static const bool DEFAULT_STAKE_CACHE = true;
 
 struct CBlockTemplate
 {
@@ -162,7 +170,7 @@ public:
     explicit BlockAssembler(const CTxMemPool& mempool, const CChainParams& params, const Options& options);
 
     /** Construct a new block template with coinbase to scriptPubKeyIn */
-    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn);
+    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, int64_t* pFees = 0);
 
     static Optional<int64_t> m_last_block_num_txs;
     static Optional<int64_t> m_last_block_weight;
@@ -200,6 +208,11 @@ private:
       * of updated descendants. */
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set& mapModifiedTx) EXCLUSIVE_LOCKS_REQUIRED(m_mempool.cs);
 };
+
+#ifdef ENABLE_WALLET
+/** Generate a new block, without valid proof-of-work */
+void StakeNoir(bool fStake, CWallet *pwallet, CConnman* connman, boost::thread_group*& stakeThread);
+#endif
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);

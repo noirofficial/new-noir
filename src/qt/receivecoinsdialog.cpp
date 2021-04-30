@@ -93,9 +93,17 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         columnResizingFixer = new GUIUtil::TableViewLastColumnResizingFixer(tableView, AMOUNT_MINIMUM_COLUMN_WIDTH, DATE_COLUMN_WIDTH, this);
 
         if (model->wallet().getDefaultAddressType() == OutputType::BECH32) {
-            ui->useBech32->setCheckState(Qt::Checked);
+            ui->addressType->addItem("BECH32");
+            ui->addressType->addItem("P2SH_SEGWIT");
+            ui->addressType->addItem("LEGACY");
+        } else if (model->wallet().getDefaultAddressType() == OutputType::P2SH_SEGWIT){
+            ui->addressType->addItem("P2SH_SEGWIT");
+            ui->addressType->addItem("BECH32");
+            ui->addressType->addItem("LEGACY");
         } else {
-            ui->useBech32->setCheckState(Qt::Unchecked);
+            ui->addressType->addItem("LEGACY");
+            ui->addressType->addItem("BECH32");
+            ui->addressType->addItem("P2SH_SEGWIT");
         }
 
         // Set the button to be enabled or disabled based on whether the wallet can give out new addresses.
@@ -147,14 +155,14 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString address;
     QString label = ui->reqLabel->text();
     /* Generate new receiving address */
-    OutputType address_type;
-    if (ui->useBech32->isChecked()) {
+    OutputType address_type = model->wallet().getDefaultAddressType();
+
+    if (ui->addressType->currentText() == ("BECH32")) {
         address_type = OutputType::BECH32;
-    } else {
-        address_type = model->wallet().getDefaultAddressType();
-        if (address_type == OutputType::BECH32) {
-            address_type = OutputType::P2SH_SEGWIT;
-        }
+    } else if (ui->addressType->currentText() == ("LEGACY")){
+        address_type = OutputType::LEGACY;
+    } else if (ui->addressType->currentText() == ("P2SH_SEGWIT")){
+        address_type = OutputType::P2SH_SEGWIT;
     }
     address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", address_type);
     SendCoinsRecipient info(address, label,
