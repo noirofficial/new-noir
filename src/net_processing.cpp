@@ -3953,7 +3953,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
             if (pto->m_tx_relay != nullptr) {
                 LOCK(pto->m_tx_relay->cs_tx_inventory);
                 // Check whether periodic sends should happen
-                bool fSendTrickle = pto->HasPermission(PF_NOBAN);
+                bool fSendTrickle = true;/*pto->HasPermission(PF_NOBAN);
                 if (pto->m_tx_relay->nNextInvSend < current_time) {
                     fSendTrickle = true;
                     if (pto->fInbound) {
@@ -3962,7 +3962,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                         // Use half the delay for outbound peers, as there is less privacy concern for them.
                         pto->m_tx_relay->nNextInvSend = PoissonNextSend(current_time, std::chrono::seconds{INVENTORY_BROADCAST_INTERVAL >> 1});
                     }
-                }
+                }*/
 
                 // Time to send but the peer has requested we not relay transactions.
                 if (fSendTrickle) {
@@ -4071,6 +4071,15 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 }
             }
         }
+        // NOIR Send non-tx/non-block inventory items
+	for (const auto& inv : pto->vInventoryOtherToSend) {
+		vInv.emplace_back(inv);
+		if (vInv.size() == MAX_INV_SZ) {
+			connman->PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
+			vInv.clear();
+		}
+	}
+	pto->vInventoryOtherToSend.clear();
         if (!vInv.empty())
             connman->PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
 
