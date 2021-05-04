@@ -77,6 +77,7 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
         case(MASTERNODE_SYNC_MNW):
             LogPrint(BCLog::MNSYNC, "CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
+            uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             LogPrint(BCLog::MNSYNC, "CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
             break;

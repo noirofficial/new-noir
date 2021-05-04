@@ -54,6 +54,12 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     // move timer to thread so that polling doesn't disturb main event loop
     timer->moveToThread(m_thread);
     m_thread->start();
+    
+    pollMnTimer = new QTimer(this);
+    connect(pollMnTimer, &QTimer::timeout, this, &ClientModel::updateMnTimer);
+    // no need to update as frequent as data for balances/txes/blocks
+    pollMnTimer->start(MODEL_UPDATE_DELAY * 4);
+
 
     subscribeToCoreSignals();
 }
@@ -251,6 +257,12 @@ static void BannedListChanged(ClientModel *clientmodel)
     assert(invoked);
 }
 
+static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
+{
+    QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
+                              Q_ARG(double, nSyncProgress));
+}
+
 static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, int height, int64_t blockTime, double verificationProgress, bool fHeader)
 {
     // lock free async UI updates in case we have a new block tip
@@ -291,6 +303,7 @@ void ClientModel::subscribeToCoreSignals()
     m_handler_banned_list_changed = m_node.handleBannedListChanged(std::bind(BannedListChanged, this));
     m_handler_notify_block_tip = m_node.handleNotifyBlockTip(std::bind(BlockTipChanged, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, false));
     m_handler_notify_header_tip = m_node.handleNotifyHeaderTip(std::bind(BlockTipChanged, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, true));
+    m_handler_additional_data_sync_progress_changed = m_node.handleNotifyAdditionalDataSyncProgressChanged(std::bind(NotifyAdditionalDataSyncProgressChanged, this, std::placeholders::_1));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()

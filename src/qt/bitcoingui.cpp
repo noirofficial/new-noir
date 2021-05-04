@@ -596,6 +596,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         modalOverlay->setKnownBestHeight(_clientModel->getHeaderTipHeight(), QDateTime::fromTime_t(_clientModel->getHeaderTipTime()));
         setNumBlocks(m_node.getNumBlocks(), QDateTime::fromTime_t(m_node.getLastBlockTime()), m_node.getVerificationProgress(), false);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &BitcoinGUI::setNumBlocks);
+        connect(_clientModel, &ClientModel::additionalDataSyncProgressChanged, this, &BitcoinGUI::setAdditionalDataSyncProgress);
 
         // Receive and report messages from client model
         connect(_clientModel, &ClientModel::message, [this](const QString &title, const QString &message, unsigned int style){
@@ -1064,6 +1065,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         tooltip += tr("Last received block was generated %1 ago.").arg(timeBehindText);
         tooltip += QString("<br>");
         tooltip += tr("Transactions after this will not yet be visible.");
+    } else if (fLiteMode) {
+        setAdditionalDataSyncProgress(1);
     }
 
     // Don't word-wrap this (fixed-width) tooltip
