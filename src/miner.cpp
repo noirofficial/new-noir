@@ -583,7 +583,7 @@ void ThreadStakeMiner(CWallet *pwallet, CConnman* connman)
                 pwallet->m_last_coin_stake_search_interval = 0;
                 UninterruptibleSleep(std::chrono::milliseconds{10000});
             }
-            while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload())
+            while (connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || ::ChainstateActive().IsInitialBlockDownload() || !masternodeSync.IsSynced())
             {
                 pwallet->m_last_coin_stake_search_interval = 0;
                 fTryToSync = true;
