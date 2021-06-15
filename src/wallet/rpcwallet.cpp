@@ -3383,6 +3383,91 @@ UniValue signrawtransactionwithwallet(const JSONRPCRequest& request)
     return result;
 }
 
+static CTransactionRef SendMoneyToScript(interfaces::Chain::Lock& locked_chain, CWallet * const pwallet, const CScript scriptPubKey, CAmount nValue, bool fSubtractFeeFromAmount, const CCoinControl& coin_control, mapValue_t mapValue)
+{
+    CAmount curBalance = pwallet->GetBalance(0, coin_control.m_avoid_address_reuse).m_mine_trusted;
+
+    // Check amount
+    if (nValue <= 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
+
+    if (nValue > curBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    if (pwallet->m_wallet_unlock_staking_only)
+    {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Wallet unlocked for staking only, unable to create transaction.");
+    }
+
+    // Create and send the transaction
+    CAmount nFeeRequired = 0;
+    std::string strError;
+    std::vector<CRecipient> vecSend;
+    int nChangePosRet = -1;
+    CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};
+    vecSend.push_back(recipient);
+    CTransactionRef tx;
+    if (!pwallet->CreateTransaction(locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strError, coin_control)) {
+        if (!fSubtractFeeFromAmount && nValue + nFeeRequired > curBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s", FormatMoney(nFeeRequired));
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+    pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    return tx;
+}
+
+
+static UniValue burn(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+            RPCHelpMan{"burn",
+                "\nBurn any amount of Noir you do not need or want anymore and no other should ever be able to use it either." +
+        HELP_REQUIRING_PASSPHRASE,
+                {
+                    {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The amount in " + CURRENCY_UNIT + " to burn. eg 0.1"}
+                },
+                RPCResult{
+                    RPCResult::Type::STR_HEX, "txid", "The transaction id."
+                },
+                RPCExamples{
+                    HelpExampleCli("burn", "0.1")
+                },
+            }.Check(request);
+
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[0]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for burn");
+
+    // Wallet comments
+    mapValue_t mapValue;
+
+    bool fSubtractFeeFromAmount = true;
+
+    CCoinControl coin_control;
+
+    CScript scriptPubKey = CScript() << OP_RETURN;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    CTransactionRef tx = SendMoneyToScript(*locked_chain, pwallet, scriptPubKey, nAmount, fSubtractFeeFromAmount, coin_control, std::move(mapValue));
+    return tx->GetHash().GetHex();
+}
+
+
 static UniValue bumpfee(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -4318,6 +4403,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "addmultisigaddress",               &addmultisigaddress,            {"nrequired","keys","label","address_type"} },
     { "wallet",             "backupwallet",                     &backupwallet,                  {"destination"} },
     { "wallet",             "bumpfee",                          &bumpfee,                       {"txid", "options"} },
+    { "wallet",             "burn",                          &burn,                       {"amount"} },
     { "wallet",             "createwallet",                     &createwallet,                  {"wallet_name", "disable_private_keys", "blank", "passphrase", "avoid_reuse"} },
     { "wallet",             "dumpprivkey",                      &dumpprivkey,                   {"address"}  },
     { "wallet",             "dumpwallet",                       &dumpwallet,                    {"filename"} },
