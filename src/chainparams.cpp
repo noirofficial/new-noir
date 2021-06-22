@@ -207,6 +207,11 @@ public:
         consensus.nLastPOWBlock = 199;
         consensus.nStakeTimestampMask = 0xf; // 15
 
+        // Swap related values
+        consensus.swapAddress = "tnor1qqqd0ef526cnaz9sf69qmj09uvedehwfj8pqhyz";
+        consensus.swapAmount = 674120.75 * COIN;
+        consensus.swapMiningBlock = 5;
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100010");
 

@@ -6,6 +6,7 @@
 #ifndef BITCOIN_CONSENSUS_PARAMS_H
 #define BITCOIN_CONSENSUS_PARAMS_H
 
+#include <amount.h>
 #include <uint256.h>
 #include <limits>
 
@@ -94,6 +95,11 @@ struct Params {
     uint256 posLimit;
     int nLastPOWBlock;
     int nStakeTimestampMask;
+
+    /** Swap related parameters */
+    std::string swapAddress;
+    CAmount swapAmount;
+    int swapMiningBlock;
 };
 } // namespace Consensus
 

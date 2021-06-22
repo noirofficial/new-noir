@@ -1253,6 +1253,9 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     if (nHeight == 0)
         return 0 * COIN;
 
+    if (nHeight == consensusParams.swapMiningBlock)
+        return (2.2 * COIN) + (consensusParams.swapAmount);
+
     // Block reward will always be 2.2 NOR
     // 0.66 to Stakers/Miners
     // 0.44 to Devs
