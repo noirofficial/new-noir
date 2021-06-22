@@ -200,6 +200,44 @@ static UniValue generatetodescriptor(const JSONRPCRequest& request)
     return generateBlocks(mempool, coinbase_script.at(0), num_blocks, max_tries);
 }
 
+static UniValue generate(const JSONRPCRequest& request)
+{
+            RPCHelpMan{"generatetoaddress",
+                "\nMine blocks immediately to a specified address (before the RPC call returns)\n",
+                {
+                    {"nblocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many blocks are generated immediately."},
+                },
+                RPCResult{
+                    RPCResult::Type::ARR, "", "hashes of blocks generated",
+                    {
+                        {RPCResult::Type::STR_HEX, "", "blockhash"},
+                    }},
+                RPCExamples{
+            "\nGenerate 11 blocks to myaddress\n"
+            + HelpExampleCli("generatetoaddress", "11 \"myaddress\"")
+            + "If you are running the noir core wallet, you can get a new address to send the newly generated noir to with:\n"
+            + HelpExampleCli("getnewaddress", "")
+                },
+            }.Check(request);
+
+    int nGenerate = request.params[0].get_int();
+    uint64_t nMaxTries = 1000000;
+    if (request.params.size() > 1) {
+        nMaxTries = request.params[1].get_int();
+    }
+
+    CTxDestination destination = DecodeDestination(request.params[1].get_str());
+    if (!IsValidDestination(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    CScript coinbase_script = GetScriptForDestination(destination);
+
+    const CTxMemPool& mempool = EnsureMemPool();
+
+    return generateBlocks(mempool, coinbase_script, nGenerate, nMaxTries);
+}
+
 static UniValue generatetoaddress(const JSONRPCRequest& request)
 {
             RPCHelpMan{"generatetoaddress",

@@ -153,11 +153,20 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_last_block_weight = nBlockWeight;
 
     // Calculate rewards
-    CAmount devReward = 0, blkReward = 0, mstReward = 0;
+    CAmount devReward = 0, blkReward = 0, mstReward = 0, swapAmount = 0;
     if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
         devReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.2;
         blkReward = nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.3);
         mstReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.5;
+    } else if ((nHeight == chainparams.GetConsensus().swapMiningBlock) && (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock)) {
+        devReward = (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) - chainparams.GetConsensus().swapAmount)  * 0.2;
+        blkReward = nFees + ((GetBlockSubsidy(nHeight, chainparams.GetConsensus()) - chainparams.GetConsensus().swapAmount) * 0.3);
+        mstReward = (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) - chainparams.GetConsensus().swapAmount) * 0.5;
+        swapAmount = chainparams.GetConsensus().swapAmount;
+    } else if ((nHeight == chainparams.GetConsensus().swapMiningBlock) && (nHeight < chainparams.GetConsensus().nMasternodeStartBlock)) {
+        devReward = (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) - chainparams.GetConsensus().swapAmount)  * 0.2;
+        blkReward = nFees + ((GetBlockSubsidy(nHeight, chainparams.GetConsensus()) - chainparams.GetConsensus().swapAmount) * 0.8);
+        swapAmount = chainparams.GetConsensus().swapAmount;
     } else {
         devReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.2;
         blkReward = nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * 0.8);
@@ -175,10 +184,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
 
     // Prepare swap script
-    CScript swapScript = GetScriptForDestination(DecodeDestination("nor1qw8c5cgx0jc83r5aw05jm3rf6u4f7e4zwejzh3z")); // mainnet
-
-    // Swap amount
-    // CAmount swapAmount = TODO: get the supply of the old chain at a certain block
+    CScript swapScript = GetScriptForDestination(DecodeDestination(chainparams.GetConsensus().swapAddress)); // mainnet
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
@@ -189,6 +195,20 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         // Make the coinbase tx empty in case of proof of stake
         coinbaseTx.vout.resize(1);
         coinbaseTx.vout[0].SetEmpty();
+    } else if (nHeight == chainparams.GetConsensus().swapMiningBlock) {
+        coinbaseTx.vout.resize(3);
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = blkReward;
+        coinbaseTx.vout[1].scriptPubKey = devScript;
+        coinbaseTx.vout[1].nValue = devReward;
+        coinbaseTx.vout[2].scriptPubKey = swapScript;
+        coinbaseTx.vout[2].nValue = swapAmount;
+        if (nHeight >= chainparams.GetConsensus().nMasternodeStartBlock) {
+            FillBlockPayments(coinbaseTx, nHeight, mstReward, nFees, pblocktemplate->txoutMasternode, pblocktemplate->voutSuperblock);
+            if(pblocktemplate->txoutMasternode == CTxOut()){
+                coinbaseTx.vout[0].nValue = blkReward + mstReward; // do not lose money if no noirnode is found -> pay the miner/staker instead
+            }
+        }
     } else {
         coinbaseTx.vout.resize(2);
         coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
@@ -202,7 +222,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             }
         }
     }
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    if (nHeight == chainparams.GetConsensus().swapMiningBlock) {
+        coinbaseTx.vin[0].scriptSig = CScript() << nHeight << chainparams.GetConsensus().swapAmount << OP_0;
+    } else {
+        coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    }
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
