@@ -105,7 +105,7 @@ tail -f $HOME/Library/Application\ Support/noir/debug.log
 
 ## Other commands:
 ```shell
-./src/noird -daemon      # Starts the bitcoin daemon.
+./src/noird -daemon      # Starts the noir daemon.
 ./src/noir-cli --help    # Outputs a list of command-line options.
 ./src/noir-cli help      # Outputs a list of RPC commands when the daemon is running.
 ```
