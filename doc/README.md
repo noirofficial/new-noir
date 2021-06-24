@@ -7,7 +7,7 @@ Setup
 
 Running
 ---------------------
-The following are some helpful notes on how to run Bitcoin Core on your native platform.
+The following are some helpful notes on how to run Noir Core on your native platform.
 
 ### Unix
 
@@ -22,12 +22,10 @@ Unpack the files into a directory, and then run noir-qt.exe.
 
 ### macOS
 
-Drag Bitcoin Core to your applications folder, and then run Noir Core.
+Drag Noir Core to your applications folder, and then run Noir Core.
 
 ### Need Help?
 
-* See the documentation at the [Bitcoin Wiki](https://en.bitcoin.it/wiki/Main_Page)
-for help and more information.
 * Ask for help on Discord: https://discord.gg/J3qquSz
 
 Building
