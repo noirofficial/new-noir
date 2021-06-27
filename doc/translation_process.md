@@ -65,7 +65,7 @@ username = USERNAME
 The Transifex noir project config file is included as part of the repo. It can be found at `.tx/config`, however you shouldn’t need to change anything.
 
 ### Synchronising translations
-To assist in updating translations, a helper script is available in the [maintainer-tools repo](https://github.com/noir-core/noir-maintainer-tools).
+To assist in updating translations, a helper script is available in the [maintainer-tools repo](https://github.com/noirofficial/noir-maintainer-tools).
 
 1. `python3 ../noir-maintainer-tools/update-translations.py`
 2. `git add` new translations from `src/qt/locale/`
