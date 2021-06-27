@@ -39,7 +39,7 @@ The following are developer notes on how to build Noir Core on your native platf
 - [FreeBSD Build Notes](build-freebsd.md)
 - [OpenBSD Build Notes](build-openbsd.md)
 - [NetBSD Build Notes](build-netbsd.md)
-- [Gitian Building Guide (External Link)](https://github.com/noir/docs/blob/master/gitian-building.md)
+- [Gitian Building Guide (External Link)](https://github.com/noirofficial/docs/blob/master/gitian-building.md)
 
 Development
 ---------------------

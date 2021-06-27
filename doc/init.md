@@ -78,15 +78,15 @@ files out-of-the-box. This is because the command line options specified in the
 init files take precedence over the configurations in
 `/etc/noir/noir.conf`. However, some init systems have their own
 configuration mechanisms that would allow for overriding the command line
-options specified in the init files (e.g. setting `BITCOIND_DATADIR` for
+options specified in the init files (e.g. setting `noirD_DATADIR` for
 OpenRC).
 
 ### macOS
 
 Binary:              `/usr/local/bin/noird`
-Configuration file:  `~/Library/Application Support/Bitcoin/noir.conf`
-Data directory:      `~/Library/Application Support/Bitcoin`
-Lock file:           `~/Library/Application Support/Bitcoin/.lock`
+Configuration file:  `~/Library/Application Support/noir/noir.conf`
+Data directory:      `~/Library/Application Support/noir`
+Lock file:           `~/Library/Application Support/noir/.lock`
 
 Installing Service Configuration
 -----------------------------------
@@ -124,7 +124,7 @@ use old versions of Upstart and do not supply the start-stop-daemon utility.
 Copy noird.init to /etc/init.d/noird. Test by running `service noird start`.
 
 Using this script, you can adjust the path and flags to the noird program by
-setting the BITCOIND and FLAGS environment variables in the file
+setting the noirD and FLAGS environment variables in the file
 /etc/sysconfig/noird. You can also use the DAEMONOPTS environment variable here.
 
 ### macOS
