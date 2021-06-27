@@ -189,7 +189,7 @@ steps, or for dumping wallet descriptors including private key material.
 ### Compatibility with old wallets
 
 In order to easily represent the sets of scripts currently supported by
-existing noir Core wallets, a convenience function `combo` is
+existing Noir Core wallets, a convenience function `combo` is
 provided, which takes as input a public key, and describes a set of P2PK,
 P2PKH, P2WPKH, and P2SH-P2WPH scripts for that key. In case the key is
 uncompressed, the set only includes P2PK and P2PKH scripts.
@@ -206,7 +206,7 @@ be detected in descriptors up to 501 characters, and up to 3 errors in longer
 ones. For larger numbers of errors, or other types of errors, there is a
 roughly 1 in a trillion chance of not detecting the errors.
 
-All RPCs in noir Core will include the checksum in their output. Only
+All RPCs in Noir Core will include the checksum in their output. Only
 certain RPCs require checksums on input, including `deriveaddress` and
 `importmulti`. The checksum for a descriptor without one can be computed
 using the `getdescriptorinfo` RPC.

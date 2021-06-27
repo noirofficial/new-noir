@@ -143,7 +143,7 @@ NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from 
 
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 
-### Build and sign noir Core for Linux, Windows, and macOS:
+### Build and sign Noir Core for Linux, Windows, and macOS:
 
     pushd ./gitian-builder
     ./bin/gbuild --num-make 2 --memory 3000 --commit noir=v${VERSION} ../noir/contrib/gitian-descriptors/gitian-linux.yml
@@ -361,7 +361,7 @@ noir.org (see below for noir.org update instructions).
 
   - noir-dev and noir-core-dev mailing list
 
-  - noir Core announcements list https://noircore.org/en/list/announcements/join/
+  - Noir Core announcements list https://noircore.org/en/list/announcements/join/
 
   - Update title of #noir on Freenode IRC
 

@@ -1,7 +1,7 @@
 0.20.1 Release Notes
 ====================
 
-noir Core version 0.20.1 is now available from:
+Noir Core version 0.20.1 is now available from:
 
   <https://noircore.org/bin/noir-core-0.20.1/>
 
@@ -24,21 +24,21 @@ shut down (which might take a few minutes in some cases), then run the
 installer (on Windows) or just copy over `/Applications/noir-Qt` (on Mac)
 or `noird`/`noir-qt` (on Linux).
 
-Upgrading directly from a version of noir Core that has reached its EOL is
+Upgrading directly from a version of Noir Core that has reached its EOL is
 possible, but it might take some time if the data directory needs to be migrated. Old
-wallet versions of noir Core are generally supported.
+wallet versions of Noir Core are generally supported.
 
 Compatibility
 ==============
 
-noir Core is supported and extensively tested on operating systems
+Noir Core is supported and extensively tested on operating systems
 using the Linux kernel, macOS 10.12+, and Windows 7 and newer.  noir
 Core should also work on most other Unix-like systems but is not as
-frequently tested on them.  It is not recommended to use noir Core on
+frequently tested on them.  It is not recommended to use Noir Core on
 unsupported systems.
 
-From noir Core 0.20.0 onwards, macOS versions earlier than 10.12 are no
-longer supported. Additionally, noir Core does not yet change appearance
+From Noir Core 0.20.0 onwards, macOS versions earlier than 10.12 are no
+longer supported. Additionally, Noir Core does not yet change appearance
 when macOS "dark mode" is activated.
 
 Known Bugs

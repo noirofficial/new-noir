@@ -1,7 +1,7 @@
 Translation Strings Policy
 ===========================
 
-This document provides guidelines for internationalization of the noir Core software.
+This document provides guidelines for internationalization of the Noir Core software.
 
 How to translate?
 ------------------

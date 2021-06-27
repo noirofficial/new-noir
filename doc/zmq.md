@@ -5,7 +5,7 @@ connections, inter-process communication, and shared-memory,
 providing various message-oriented semantics such as publish/subscribe,
 request/reply, and push/pull.
 
-The noir Core daemon can be configured to act as a trusted "border
+The Noir Core daemon can be configured to act as a trusted "border
 router", implementing the noir wire protocol and relay, making
 consensus decisions, maintaining the local blockchain database,
 broadcasting locally generated transactions into the network, and
@@ -33,7 +33,7 @@ buffering or reassembly.
 
 ## Prerequisites
 
-The ZeroMQ feature in noir Core requires the ZeroMQ API >= 4.0.0
+The ZeroMQ feature in Noir Core requires the ZeroMQ API >= 4.0.0
 [libzmq](https://github.com/zeromq/libzmq/releases).
 For version information, see [dependencies.md](dependencies.md).
 Typically, it is packaged by distributions as something like

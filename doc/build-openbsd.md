@@ -48,7 +48,7 @@ from the root of the repository. Then set `BDB_PREFIX` for the next section:
 export BDB_PREFIX="$PWD/db4"
 ```
 
-### Building noir Core
+### Building Noir Core
 
 **Important**: Use `gmake` (the non-GNU `make` will exit with an error).
 
@@ -104,4 +104,3 @@ If your user is in the `staff` group the limit can be raised with:
 The change will only affect the current shell and processes spawned by it. To
 make the change system-wide, change `datasize-cur` and `datasize-max` in
 `/etc/login.conf`, and reboot.
-
